@@ -2,6 +2,8 @@
 
 AgentDock 是一个基于单文件 `agentdock.yml` 的本地环境打包、导出与恢复工具。
 
+发布与版本维护请参考：[Release Guide](./docs/release.md) 与 [Changelog](./CHANGELOG.md)。
+
 ## MVP 范围
 
 - `init`：初始化项目清单
