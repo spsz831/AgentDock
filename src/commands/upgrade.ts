@@ -2,14 +2,15 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { diffLines } from 'diff';
 import YAML from 'yaml';
-import packageJson from '../../package.json';
+import { COMMAND_ERROR_CODES } from '../constants/command-error-codes';
 import {
   UPGRADE_WARNING_CODES,
   UPGRADE_WARNING_MESSAGES,
 } from '../constants/upgrade-warning-codes';
 import { resolveSourceDestination } from '../core/source-destination';
 import type { AgentDockManifest, CommandResult, ParsedCliOptions } from '../manifest/types';
-import type { UpgradeJsonReport, UpgradeWarning } from '../types/upgrade-report';
+import type { UpgradeCommandData, UpgradeWarning } from '../types/upgrade-report';
+import { toJsonError, toJsonLine } from '../utils/command-json';
 
 function renderDiff(beforeText: string, afterText: string): string[] {
   const lines: string[] = [];
@@ -44,7 +45,7 @@ function buildWarnings(changed: boolean, addedDestinationCount: number): Upgrade
   return [];
 }
 
-function toJsonLine(
+function toUpgradeData(
   manifestPath: string,
   fromVersion: number,
   toVersion: number,
@@ -53,16 +54,12 @@ function toJsonLine(
   diffOutput: string[],
   sourceCount: number,
   templateCount: number,
-  outputPath?: string,
-): string {
+  outputPath?: string): UpgradeCommandData {
   const changedLineCount = diffOutput.filter((line) => line.startsWith('+') || line.startsWith('-')).length;
   const addedDestinationCount = countAddedDestinations(diffOutput);
   const warnings = buildWarnings(changed, addedDestinationCount);
-  const payload: UpgradeJsonReport = {
-    schemaVersion: 1,
-    generatedAt: new Date().toISOString(),
-    toolVersion: packageJson.version,
-    command: 'upgrade',
+
+  return {
     manifestPath,
     outputPath,
     fromVersion,
@@ -79,16 +76,44 @@ function toJsonLine(
       warnings,
     },
   };
-
-  return JSON.stringify(payload);
 }
 
 export async function runUpgradeCommand(manifestPath?: string, options: ParsedCliOptions = {}): Promise<CommandResult> {
+  const usage = 'Usage: agentdock upgrade <manifestPath> [--dry-run] [--json] [--write <path>] [--backup] [--force]';
+
   if (!manifestPath) {
+    if (options.json === true) {
+      return {
+        exitCode: 1,
+        stdout: [toJsonLine(
+          'upgrade',
+          false,
+          {
+            manifestPath: '',
+            fromVersion: 0,
+            toVersion: 0,
+            changed: false,
+            dryRun: options.dryRun === true,
+            diff: [],
+            summary: {
+              addedDestinationCount: 0,
+              changedLineCount: 0,
+              sourceCount: 0,
+              templateCount: 0,
+              warningCount: 0,
+              warnings: [],
+            },
+          } satisfies UpgradeCommandData,
+          [toJsonError(COMMAND_ERROR_CODES.MISSING_ARGUMENT, usage)],
+        )],
+        stderr: [],
+      };
+    }
+
     return {
       exitCode: 1,
       stdout: [],
-      stderr: ['Usage: agentdock upgrade <manifestPath> [--dry-run] [--json] [--write <path>] [--backup] [--force]'],
+      stderr: [usage],
     };
   }
 
@@ -101,19 +126,21 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
 
     if (manifest.version === 2 && options.force !== true) {
       if (options.json === true) {
+        const data = toUpgradeData(
+          absolutePath,
+          2,
+          2,
+          false,
+          options.dryRun === true,
+          [],
+          manifest.sources.length,
+          manifest.templates?.length ?? 0,
+          requestedOutputPath,
+        );
+
         return {
           exitCode: 0,
-          stdout: [toJsonLine(
-            absolutePath,
-            2,
-            2,
-            false,
-            options.dryRun === true,
-            [],
-            manifest.sources.length,
-            manifest.templates?.length ?? 0,
-            requestedOutputPath,
-          )],
+          stdout: [toJsonLine('upgrade', true, data, [])],
           stderr: [],
         };
       }
@@ -125,6 +152,31 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
     }
 
     if (manifest.version !== 1 && manifest.version !== 2) {
+      if (options.json === true) {
+        const data = toUpgradeData(
+          absolutePath,
+          fromVersion,
+          2,
+          false,
+          options.dryRun === true,
+          [],
+          manifest.sources?.length ?? 0,
+          manifest.templates?.length ?? 0,
+          requestedOutputPath,
+        );
+
+        return {
+          exitCode: 1,
+          stdout: [toJsonLine(
+            'upgrade',
+            false,
+            data,
+            [toJsonError(COMMAND_ERROR_CODES.UNSUPPORTED_MANIFEST_VERSION, `Unsupported manifest version: ${manifest.version}`)],
+          )],
+          stderr: [],
+        };
+      }
+
       return {
         exitCode: 1,
         stdout: [],
@@ -146,19 +198,21 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
 
     if (options.dryRun === true) {
       if (options.json === true) {
+        const data = toUpgradeData(
+          absolutePath,
+          fromVersion,
+          2,
+          diffOutput.length > 0,
+          true,
+          diffOutput,
+          upgraded.sources.length,
+          upgraded.templates?.length ?? 0,
+          requestedOutputPath,
+        );
+
         return {
           exitCode: 0,
-          stdout: [toJsonLine(
-            absolutePath,
-            fromVersion,
-            2,
-            diffOutput.length > 0,
-            true,
-            diffOutput,
-            upgraded.sources.length,
-            upgraded.templates?.length ?? 0,
-            requestedOutputPath,
-          )],
+          stdout: [toJsonLine('upgrade', true, data, [])],
           stderr: [],
         };
       }
@@ -182,19 +236,21 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
     await fs.writeFile(outputPath, output, 'utf8');
 
     if (options.json === true) {
+      const data = toUpgradeData(
+        absolutePath,
+        fromVersion,
+        2,
+        diffOutput.length > 0,
+        false,
+        diffOutput,
+        upgraded.sources.length,
+        upgraded.templates?.length ?? 0,
+        outputPath,
+      );
+
       return {
         exitCode: 0,
-        stdout: [toJsonLine(
-          absolutePath,
-          fromVersion,
-          2,
-          diffOutput.length > 0,
-          false,
-          diffOutput,
-          upgraded.sources.length,
-          upgraded.templates?.length ?? 0,
-          outputPath,
-        )],
+        stdout: [toJsonLine('upgrade', true, data, [])],
         stderr: [],
       };
     }
@@ -208,10 +264,42 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
       stderr: [],
     };
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json === true) {
+      const code = message.includes('ENOENT')
+        ? COMMAND_ERROR_CODES.MANIFEST_NOT_FOUND
+        : COMMAND_ERROR_CODES.UNKNOWN_ERROR;
+      return {
+        exitCode: 1,
+        stdout: [toJsonLine(
+          'upgrade',
+          false,
+          {
+            manifestPath: path.resolve(manifestPath),
+            fromVersion: 0,
+            toVersion: 2,
+            changed: false,
+            dryRun: options.dryRun === true,
+            diff: [],
+            summary: {
+              addedDestinationCount: 0,
+              changedLineCount: 0,
+              sourceCount: 0,
+              templateCount: 0,
+              warningCount: 0,
+              warnings: [],
+            },
+          } satisfies UpgradeCommandData,
+          [toJsonError(code, message)],
+        )],
+        stderr: [],
+      };
+    }
+
     return {
       exitCode: 1,
       stdout: [],
-      stderr: [error instanceof Error ? error.message : String(error)],
+      stderr: [message],
     };
   }
 }

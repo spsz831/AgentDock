@@ -57,7 +57,7 @@ export async function runCli(args: string[]): Promise<CommandResult> {
     case 'export':
       return runExportCommand(positionals[0], options);
     case 'init':
-      return runInitCommand(positionals[0]);
+      return runInitCommand(positionals[0], options);
     case 'install':
       return runInstallCommand(positionals[0], positionals[1], options);
     case 'upgrade':

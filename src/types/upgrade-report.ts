@@ -1,4 +1,5 @@
 import type { UpgradeWarningCode } from '../constants/upgrade-warning-codes';
+import type { CommandJsonReport } from './command-report';
 
 export type UpgradeWarning = {
   code: UpgradeWarningCode;
@@ -14,11 +15,7 @@ export type UpgradeSummary = {
   warnings: UpgradeWarning[];
 };
 
-export type UpgradeJsonReport = {
-  schemaVersion: 1;
-  generatedAt: string;
-  toolVersion: string;
-  command: 'upgrade';
+export type UpgradeCommandData = {
   manifestPath: string;
   outputPath?: string;
   fromVersion: number;
@@ -28,3 +25,5 @@ export type UpgradeJsonReport = {
   diff: string[];
   summary: UpgradeSummary;
 };
+
+export type UpgradeJsonReport = CommandJsonReport<UpgradeCommandData>;

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import packageJson from '../package.json';
 import { runCli } from '../src/cli';
+import { COMMAND_ERROR_CODES } from '../src/constants/command-error-codes';
 import { UPGRADE_WARNING_CODES } from '../src/constants/upgrade-warning-codes';
 import type { UpgradeJsonReport } from '../src/types/upgrade-report';
 
@@ -56,20 +56,22 @@ describe('cli upgrade command', () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout.length).toBe(1);
     const payload = JSON.parse(result.stdout[0] ?? '{}') as UpgradeJsonReport;
-    expect(payload.dryRun).toBe(true);
+    expect(payload.command).toBe('upgrade');
     expect(payload.schemaVersion).toBe(1);
     expect(Number.isNaN(Date.parse(payload.generatedAt))).toBe(false);
-    expect(payload.toolVersion).toBe(packageJson.version);
-    expect(payload.changed).toBe(true);
-    expect(payload.fromVersion).toBe(1);
-    expect(payload.toVersion).toBe(2);
-    expect(payload.diff.some((line) => line.includes('+version: 2'))).toBe(true);
-    expect(payload.summary.addedDestinationCount).toBe(1);
-    expect(payload.summary.changedLineCount > 0).toBe(true);
-    expect(payload.summary.sourceCount).toBe(1);
-    expect(payload.summary.templateCount).toBe(0);
-    expect(payload.summary.warningCount).toBe(0);
-    expect(payload.summary.warnings).toEqual([]);
+    expect(payload.success).toBe(true);
+    expect(payload.data.dryRun).toBe(true);
+    expect(payload.data.changed).toBe(true);
+    expect(payload.data.fromVersion).toBe(1);
+    expect(payload.data.toVersion).toBe(2);
+    expect(payload.data.diff.some((line) => line.includes('+version: 2'))).toBe(true);
+    expect(payload.data.summary.addedDestinationCount).toBe(1);
+    expect(payload.data.summary.changedLineCount > 0).toBe(true);
+    expect(payload.data.summary.sourceCount).toBe(1);
+    expect(payload.data.summary.templateCount).toBe(0);
+    expect(payload.data.summary.warningCount).toBe(0);
+    expect(payload.data.summary.warnings).toEqual([]);
+    expect(payload.errors).toEqual([]);
 
     const after = await fs.readFile(manifestPath, 'utf8');
     expect(after).toBe(original);
@@ -130,9 +132,10 @@ describe('cli upgrade command', () => {
 
     expect(result.exitCode).toBe(0);
     const payload = JSON.parse(result.stdout[0] ?? '{}') as UpgradeJsonReport;
-    expect(payload.changed).toBe(true);
+    expect(payload.success).toBe(true);
     expect(payload.schemaVersion).toBe(1);
-    expect(payload.outputPath).toBe(path.resolve(targetManifestPath));
+    expect(payload.data.changed).toBe(true);
+    expect(payload.data.outputPath).toBe(path.resolve(targetManifestPath));
 
     const sourceAfter = await fs.readFile(sourceManifestPath, 'utf8');
     const targetAfter = await fs.readFile(targetManifestPath, 'utf8');
@@ -195,11 +198,12 @@ describe('cli upgrade command', () => {
 
     expect(result.exitCode).toBe(0);
     const payload = JSON.parse(result.stdout[0] ?? '{}') as UpgradeJsonReport;
-    expect(payload.changed).toBe(true);
+    expect(payload.success).toBe(true);
     expect(payload.schemaVersion).toBe(1);
-    expect(payload.diff.some((line) => line.includes('+    destination: ./workspace'))).toBe(true);
-    expect(payload.summary.warningCount).toBe(0);
-    expect(payload.summary.warnings).toEqual([]);
+    expect(payload.data.changed).toBe(true);
+    expect(payload.data.diff.some((line) => line.includes('+    destination: ./workspace'))).toBe(true);
+    expect(payload.data.summary.warningCount).toBe(0);
+    expect(payload.data.summary.warnings).toEqual([]);
     const upgraded = await fs.readFile(manifestPath, 'utf8');
     expect(upgraded).toContain('destination: ./workspace');
   });
@@ -232,11 +236,25 @@ describe('cli upgrade command', () => {
 
     expect(result.exitCode).toBe(0);
     const payload = JSON.parse(result.stdout[0] ?? '{}') as UpgradeJsonReport;
-    expect(payload.changed).toBe(true);
+    expect(payload.success).toBe(true);
     expect(payload.schemaVersion).toBe(1);
-    expect(payload.summary.addedDestinationCount).toBe(0);
-    expect(payload.summary.warningCount).toBe(1);
-    expect(payload.summary.warnings[0]?.code).toBe(UPGRADE_WARNING_CODES.FORMAT_ONLY_CHANGE);
-    expect(payload.summary.warnings[0]?.message?.length).toBeGreaterThan(0);
+    expect(payload.data.changed).toBe(true);
+    expect(payload.data.summary.addedDestinationCount).toBe(0);
+    expect(payload.data.summary.warningCount).toBe(1);
+    expect(payload.data.summary.warnings[0]?.code).toBe(UPGRADE_WARNING_CODES.FORMAT_ONLY_CHANGE);
+    expect(payload.data.summary.warnings[0]?.message?.length).toBeGreaterThan(0);
+  });
+
+  it('returns stable error code when manifest path is missing in json mode', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agentdock-upgrade-json-'));
+    const missingPath = path.join(tempRoot, 'missing.yml');
+
+    const result = await runCli(['upgrade', missingPath, '--json']);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toEqual([]);
+    const payload = JSON.parse(result.stdout[0] ?? '{}') as UpgradeJsonReport;
+    expect(payload.success).toBe(false);
+    expect(payload.errors[0]?.code).toBe(COMMAND_ERROR_CODES.MANIFEST_NOT_FOUND);
   });
 });
