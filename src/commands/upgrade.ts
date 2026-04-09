@@ -19,6 +19,10 @@ function renderDiff(beforeText: string, afterText: string): string[] {
   return lines;
 }
 
+function countAddedDestinations(diffOutput: string[]): number {
+  return diffOutput.filter((line) => line.startsWith('+') && line.includes('destination: ')).length;
+}
+
 function toJsonLine(
   manifestPath: string,
   fromVersion: number,
@@ -28,6 +32,7 @@ function toJsonLine(
   diffOutput: string[],
   outputPath?: string,
 ): string {
+  const changedLineCount = diffOutput.filter((line) => line.startsWith('+') || line.startsWith('-')).length;
   return JSON.stringify({
     command: 'upgrade',
     manifestPath,
@@ -37,6 +42,10 @@ function toJsonLine(
     changed,
     dryRun,
     diff: diffOutput,
+    summary: {
+      addedDestinationCount: countAddedDestinations(diffOutput),
+      changedLineCount,
+    },
   });
 }
 
