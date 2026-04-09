@@ -17,6 +17,7 @@ npm run cli -- validate agentdock.yml
 npm run cli -- export agentdock.yml
 npm run cli -- install ./dist/exported ./dist/restored
 npm run cli -- upgrade agentdock.yml
+npm run cli -- upgrade agentdock.yml --dry-run
 ```
 
 ## Current behavior
@@ -24,6 +25,7 @@ npm run cli -- upgrade agentdock.yml
 - manifest v2 支持 `sources[*].destination`
 - v1 manifest 仍可读取并校验
 - `upgrade` 可将 v1 升级为 v2
+- `upgrade --dry-run` 可先查看 diff 预览，不写回文件
 - templates 在 `export` 阶段完成 `{{VAR_NAME}}` 渲染
 - `install` 默认会先做冲突预检查，发现任一目标已存在即终止
 - `install --overwrite` 允许覆盖已存在文件

@@ -79,11 +79,13 @@
 
 ```bash
 agentdock upgrade agentdock.yml
+agentdock upgrade agentdock.yml --dry-run
 ```
 
 当前支持：
 - v1 -> v2
 - 自动补充 `sources[*].destination`
+- `--dry-run` 预览 diff，不写回清单
 
 ## 示例
 

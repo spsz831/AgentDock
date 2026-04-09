@@ -14,6 +14,10 @@ function parseCliOptions(args: string[]): { positionals: string[]; options: Pars
       options.overwrite = true;
       continue;
     }
+    if (arg === '--dry-run') {
+      options.dryRun = true;
+      continue;
+    }
     positionals.push(arg);
   }
 
@@ -34,7 +38,7 @@ export async function runCli(args: string[]): Promise<CommandResult> {
     case 'install':
       return runInstallCommand(positionals[0], positionals[1], options);
     case 'upgrade':
-      return runUpgradeCommand(positionals[0]);
+      return runUpgradeCommand(positionals[0], options);
     default:
       return {
         exitCode: 1,

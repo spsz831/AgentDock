@@ -1,10 +1,25 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { diffLines } from 'diff';
 import YAML from 'yaml';
 import { resolveSourceDestination } from '../core/source-destination';
-import type { AgentDockManifest, CommandResult } from '../manifest/types';
+import type { AgentDockManifest, CommandResult, ParsedCliOptions } from '../manifest/types';
 
-export async function runUpgradeCommand(manifestPath?: string): Promise<CommandResult> {
+function renderDiff(beforeText: string, afterText: string): string[] {
+  const lines: string[] = [];
+  for (const part of diffLines(beforeText, afterText)) {
+    const prefix = part.added ? '+' : part.removed ? '-' : ' ';
+    for (const line of part.value.split('\n')) {
+      if (line.length === 0) {
+        continue;
+      }
+      lines.push(`${prefix}${line}`);
+    }
+  }
+  return lines;
+}
+
+export async function runUpgradeCommand(manifestPath?: string, options: ParsedCliOptions = {}): Promise<CommandResult> {
   if (!manifestPath) {
     return {
       exitCode: 1,
@@ -44,11 +59,27 @@ export async function runUpgradeCommand(manifestPath?: string): Promise<CommandR
     };
 
     const output = YAML.stringify(upgraded);
+    const diffOutput = renderDiff(raw, output);
+
+    if (options.dryRun === true) {
+      return {
+        exitCode: 0,
+        stdout: [
+          `Dry run: manifest upgrade preview for ${absolutePath}`,
+          ...diffOutput,
+        ],
+        stderr: [],
+      };
+    }
+
     await fs.writeFile(absolutePath, output, 'utf8');
 
     return {
       exitCode: 0,
-      stdout: [`Upgraded manifest to version 2: ${absolutePath}`],
+      stdout: [
+        `Upgraded manifest to version 2: ${absolutePath}`,
+        ...diffOutput,
+      ],
       stderr: [],
     };
   } catch (error) {
