@@ -81,6 +81,7 @@
 agentdock upgrade agentdock.yml
 agentdock upgrade agentdock.yml --dry-run
 agentdock upgrade agentdock.yml --dry-run --json
+agentdock upgrade agentdock.yml --write ./agentdock.v2.yml
 ```
 
 当前支持：
@@ -88,6 +89,7 @@ agentdock upgrade agentdock.yml --dry-run --json
 - 自动补充 `sources[*].destination`
 - `--dry-run` 预览 diff，不写回清单
 - `--json` 输出机器可读结果；与 `--dry-run` 组合时包含 diff 数组
+- `--write <path>` 写出升级后的新清单文件，不改原文件
 
 ## 示例
 

@@ -26,10 +26,12 @@ function toJsonLine(
   changed: boolean,
   dryRun: boolean,
   diffOutput: string[],
+  outputPath?: string,
 ): string {
   return JSON.stringify({
     command: 'upgrade',
     manifestPath,
+    outputPath,
     fromVersion,
     toVersion,
     changed,
@@ -43,12 +45,13 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
     return {
       exitCode: 1,
       stdout: [],
-      stderr: ['Usage: agentdock upgrade <manifestPath>'],
+      stderr: ['Usage: agentdock upgrade <manifestPath> [--dry-run] [--json] [--write <path>]'],
     };
   }
 
   try {
     const absolutePath = path.resolve(manifestPath);
+    const requestedOutputPath = options.writePath ? path.resolve(options.writePath) : undefined;
     const raw = await fs.readFile(absolutePath, 'utf8');
     const manifest = YAML.parse(raw) as AgentDockManifest;
 
@@ -56,7 +59,7 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
       if (options.json === true) {
         return {
           exitCode: 0,
-          stdout: [toJsonLine(absolutePath, 2, 2, false, options.dryRun === true, [])],
+          stdout: [toJsonLine(absolutePath, 2, 2, false, options.dryRun === true, [], requestedOutputPath)],
           stderr: [],
         };
       }
@@ -91,7 +94,7 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
       if (options.json === true) {
         return {
           exitCode: 0,
-          stdout: [toJsonLine(absolutePath, 1, 2, true, true, diffOutput)],
+          stdout: [toJsonLine(absolutePath, 1, 2, true, true, diffOutput, options.writePath)],
           stderr: [],
         };
       }
@@ -105,12 +108,14 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
       };
     }
 
-    await fs.writeFile(absolutePath, output, 'utf8');
+    const outputPath = requestedOutputPath ?? absolutePath;
+    await fs.mkdir(path.dirname(outputPath), { recursive: true });
+    await fs.writeFile(outputPath, output, 'utf8');
 
     if (options.json === true) {
       return {
         exitCode: 0,
-        stdout: [toJsonLine(absolutePath, 1, 2, true, false, diffOutput)],
+        stdout: [toJsonLine(absolutePath, 1, 2, true, false, diffOutput, outputPath)],
         stderr: [],
       };
     }
@@ -118,7 +123,7 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
     return {
       exitCode: 0,
       stdout: [
-        `Upgraded manifest to version 2: ${absolutePath}`,
+        `Upgraded manifest to version 2: ${outputPath}`,
         ...diffOutput,
       ],
       stderr: [],

@@ -9,7 +9,8 @@ function parseCliOptions(args: string[]): { positionals: string[]; options: Pars
   const positionals: string[] = [];
   const options: ParsedCliOptions = {};
 
-  for (const arg of args) {
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
     if (arg === '--overwrite') {
       options.overwrite = true;
       continue;
@@ -20,6 +21,16 @@ function parseCliOptions(args: string[]): { positionals: string[]; options: Pars
     }
     if (arg === '--json') {
       options.json = true;
+      continue;
+    }
+    if (arg === '--write') {
+      const nextArg = args[index + 1];
+      if (nextArg && !nextArg.startsWith('--')) {
+        options.writePath = nextArg;
+        index += 1;
+      } else {
+        positionals.push(arg);
+      }
       continue;
     }
     positionals.push(arg);

@@ -64,6 +64,7 @@ export interface ParsedCliOptions {
   overwrite?: boolean;
   dryRun?: boolean;
   json?: boolean;
+  writePath?: string;
 }
 
 export interface CommandResult {

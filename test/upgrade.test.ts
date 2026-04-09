@@ -101,4 +101,36 @@ describe('cli upgrade command', () => {
     expect(upgraded).toContain('destination: ./workspace');
     expect(upgraded).toContain('destination: ./settings.json');
   });
+
+  it('writes upgraded manifest to a new file with --write and keeps original unchanged', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agentdock-upgrade-'));
+    const sourceManifestPath = path.join(tempRoot, 'agentdock.v1.yml');
+    const targetManifestPath = path.join(tempRoot, 'agentdock.v2.yml');
+    const original = [
+      'version: 1',
+      'project:',
+      '  name: legacy-demo',
+      'sources:',
+      '  - id: workspace',
+      '    type: directory',
+      '    path: ./workspace',
+      'outputs:',
+      '  type: directory',
+      '  path: ./dist/out',
+    ].join('\n');
+
+    await fs.writeFile(sourceManifestPath, original, 'utf8');
+    const result = await runCli(['upgrade', sourceManifestPath, '--write', targetManifestPath, '--json']);
+
+    expect(result.exitCode).toBe(0);
+    const payload = JSON.parse(result.stdout[0] ?? '{}') as { changed: boolean; outputPath?: string };
+    expect(payload.changed).toBe(true);
+    expect(payload.outputPath).toBe(path.resolve(targetManifestPath));
+
+    const sourceAfter = await fs.readFile(sourceManifestPath, 'utf8');
+    const targetAfter = await fs.readFile(targetManifestPath, 'utf8');
+    expect(sourceAfter).toBe(original);
+    expect(targetAfter).toContain('version: 2');
+    expect(targetAfter).toContain('destination: ./workspace');
+  });
 });
