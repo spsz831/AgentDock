@@ -80,12 +80,14 @@
 ```bash
 agentdock upgrade agentdock.yml
 agentdock upgrade agentdock.yml --dry-run
+agentdock upgrade agentdock.yml --dry-run --json
 ```
 
 当前支持：
 - v1 -> v2
 - 自动补充 `sources[*].destination`
 - `--dry-run` 预览 diff，不写回清单
+- `--json` 输出机器可读结果；与 `--dry-run` 组合时包含 diff 数组
 
 ## 示例
 

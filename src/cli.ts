@@ -18,6 +18,10 @@ function parseCliOptions(args: string[]): { positionals: string[]; options: Pars
       options.dryRun = true;
       continue;
     }
+    if (arg === '--json') {
+      options.json = true;
+      continue;
+    }
     positionals.push(arg);
   }
 

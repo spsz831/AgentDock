@@ -31,6 +31,44 @@ describe('cli upgrade command', () => {
     expect(after).toBe(original);
   });
 
+  it('emits json diff payload in dry-run json mode', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agentdock-upgrade-'));
+    const manifestPath = path.join(tempRoot, 'agentdock.yml');
+    const original = [
+      'version: 1',
+      'project:',
+      '  name: legacy-demo',
+      'sources:',
+      '  - id: workspace',
+      '    type: directory',
+      '    path: ./workspace',
+      'outputs:',
+      '  type: directory',
+      '  path: ./dist/out',
+    ].join('\n');
+
+    await fs.writeFile(manifestPath, original, 'utf8');
+    const result = await runCli(['upgrade', manifestPath, '--dry-run', '--json']);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.length).toBe(1);
+    const payload = JSON.parse(result.stdout[0] ?? '{}') as {
+      dryRun: boolean;
+      changed: boolean;
+      fromVersion: number;
+      toVersion: number;
+      diff: string[];
+    };
+    expect(payload.dryRun).toBe(true);
+    expect(payload.changed).toBe(true);
+    expect(payload.fromVersion).toBe(1);
+    expect(payload.toVersion).toBe(2);
+    expect(payload.diff.some((line) => line.includes('+version: 2'))).toBe(true);
+
+    const after = await fs.readFile(manifestPath, 'utf8');
+    expect(after).toBe(original);
+  });
+
   it('upgrades a v1 manifest into v2 with source destinations', async () => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agentdock-upgrade-'));
     const manifestPath = path.join(tempRoot, 'agentdock.yml');

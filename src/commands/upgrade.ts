@@ -19,6 +19,25 @@ function renderDiff(beforeText: string, afterText: string): string[] {
   return lines;
 }
 
+function toJsonLine(
+  manifestPath: string,
+  fromVersion: number,
+  toVersion: number,
+  changed: boolean,
+  dryRun: boolean,
+  diffOutput: string[],
+): string {
+  return JSON.stringify({
+    command: 'upgrade',
+    manifestPath,
+    fromVersion,
+    toVersion,
+    changed,
+    dryRun,
+    diff: diffOutput,
+  });
+}
+
 export async function runUpgradeCommand(manifestPath?: string, options: ParsedCliOptions = {}): Promise<CommandResult> {
   if (!manifestPath) {
     return {
@@ -34,6 +53,13 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
     const manifest = YAML.parse(raw) as AgentDockManifest;
 
     if (manifest.version === 2) {
+      if (options.json === true) {
+        return {
+          exitCode: 0,
+          stdout: [toJsonLine(absolutePath, 2, 2, false, options.dryRun === true, [])],
+          stderr: [],
+        };
+      }
       return {
         exitCode: 0,
         stdout: [`Manifest already at version 2: ${absolutePath}`],
@@ -62,6 +88,13 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
     const diffOutput = renderDiff(raw, output);
 
     if (options.dryRun === true) {
+      if (options.json === true) {
+        return {
+          exitCode: 0,
+          stdout: [toJsonLine(absolutePath, 1, 2, true, true, diffOutput)],
+          stderr: [],
+        };
+      }
       return {
         exitCode: 0,
         stdout: [
@@ -73,6 +106,14 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
     }
 
     await fs.writeFile(absolutePath, output, 'utf8');
+
+    if (options.json === true) {
+      return {
+        exitCode: 0,
+        stdout: [toJsonLine(absolutePath, 1, 2, true, false, diffOutput)],
+        stderr: [],
+      };
+    }
 
     return {
       exitCode: 0,

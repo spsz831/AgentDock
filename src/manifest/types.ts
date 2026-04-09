@@ -63,6 +63,7 @@ export interface ValidationResult {
 export interface ParsedCliOptions {
   overwrite?: boolean;
   dryRun?: boolean;
+  json?: boolean;
 }
 
 export interface CommandResult {
