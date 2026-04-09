@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.2] - 2026-04-09
+
+### Added
+- Added symlink-aware export behavior with manifest option `options.followSymlinks` (default `true`).
+- Added export test coverage for symlink follow and skip modes.
+
+### Changed
+- `export` now follows linked directories/files by default to improve Windows compatibility for skill/plugin directories.
+- When `options.followSymlinks: false`, export skips symlink entries instead of attempting to dereference them.
+
+### Docs
+- Updated manifest/README/example to document `followSymlinks` behavior.
+
 ## [0.1.1] - 2026-04-09
 
 ### Added
