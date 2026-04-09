@@ -45,7 +45,7 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
     return {
       exitCode: 1,
       stdout: [],
-      stderr: ['Usage: agentdock upgrade <manifestPath> [--dry-run] [--json] [--write <path>]'],
+      stderr: ['Usage: agentdock upgrade <manifestPath> [--dry-run] [--json] [--write <path>] [--backup] [--force]'],
     };
   }
 
@@ -54,8 +54,9 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
     const requestedOutputPath = options.writePath ? path.resolve(options.writePath) : undefined;
     const raw = await fs.readFile(absolutePath, 'utf8');
     const manifest = YAML.parse(raw) as AgentDockManifest;
+    const fromVersion = manifest.version;
 
-    if (manifest.version === 2) {
+    if (manifest.version === 2 && options.force !== true) {
       if (options.json === true) {
         return {
           exitCode: 0,
@@ -70,7 +71,7 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
       };
     }
 
-    if (manifest.version !== 1) {
+    if (manifest.version !== 1 && manifest.version !== 2) {
       return {
         exitCode: 1,
         stdout: [],
@@ -94,7 +95,7 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
       if (options.json === true) {
         return {
           exitCode: 0,
-          stdout: [toJsonLine(absolutePath, 1, 2, true, true, diffOutput, options.writePath)],
+          stdout: [toJsonLine(absolutePath, fromVersion, 2, diffOutput.length > 0, true, diffOutput, requestedOutputPath)],
           stderr: [],
         };
       }
@@ -120,7 +121,7 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
     if (options.json === true) {
       return {
         exitCode: 0,
-        stdout: [toJsonLine(absolutePath, 1, 2, true, false, diffOutput, outputPath)],
+        stdout: [toJsonLine(absolutePath, fromVersion, 2, diffOutput.length > 0, false, diffOutput, outputPath)],
         stderr: [],
       };
     }

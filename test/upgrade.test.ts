@@ -162,4 +162,35 @@ describe('cli upgrade command', () => {
     expect(backupContent).toBe(original);
     expect(upgradedContent).toContain('version: 2');
   });
+
+  it('reprocesses v2 manifest with --force and fills missing destinations', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agentdock-upgrade-'));
+    const manifestPath = path.join(tempRoot, 'agentdock.v2.yml');
+
+    await fs.writeFile(
+      manifestPath,
+      [
+        'version: 2',
+        'project:',
+        '  name: v2-demo',
+        'sources:',
+        '  - id: workspace',
+        '    type: directory',
+        '    path: ./workspace',
+        'outputs:',
+        '  type: directory',
+        '  path: ./dist/out',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const result = await runCli(['upgrade', manifestPath, '--force', '--json']);
+
+    expect(result.exitCode).toBe(0);
+    const payload = JSON.parse(result.stdout[0] ?? '{}') as { changed: boolean; diff: string[] };
+    expect(payload.changed).toBe(true);
+    expect(payload.diff.some((line) => line.includes('+    destination: ./workspace'))).toBe(true);
+    const upgraded = await fs.readFile(manifestPath, 'utf8');
+    expect(upgraded).toContain('destination: ./workspace');
+  });
 });

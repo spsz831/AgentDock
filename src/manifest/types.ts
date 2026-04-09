@@ -66,6 +66,7 @@ export interface ParsedCliOptions {
   json?: boolean;
   writePath?: string;
   backup?: boolean;
+  force?: boolean;
 }
 
 export interface CommandResult {

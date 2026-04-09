@@ -21,6 +21,7 @@ npm run cli -- upgrade agentdock.yml --dry-run
 npm run cli -- upgrade agentdock.yml --dry-run --json
 npm run cli -- upgrade agentdock.yml --write ./agentdock.v2.yml
 npm run cli -- upgrade agentdock.yml --backup
+npm run cli -- upgrade agentdock.yml --force --dry-run
 ```
 
 ## Current behavior
@@ -32,6 +33,7 @@ npm run cli -- upgrade agentdock.yml --backup
 - `upgrade --dry-run --json` 输出机器可读 diff 结果（单行 JSON）
 - `upgrade --write <path>` 将升级结果写到新文件，保留原文件不变
 - `upgrade --backup` 原位升级前生成备份文件（`<manifest>.bak.<timestamp>`）
+- `upgrade --force` 即使已是 v2 也会按当前规则重新处理并输出 diff
 - templates 在 `export` 阶段完成 `{{VAR_NAME}}` 渲染
 - `install` 默认会先做冲突预检查，发现任一目标已存在即终止
 - `install --overwrite` 允许覆盖已存在文件

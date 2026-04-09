@@ -83,6 +83,7 @@ agentdock upgrade agentdock.yml --dry-run
 agentdock upgrade agentdock.yml --dry-run --json
 agentdock upgrade agentdock.yml --write ./agentdock.v2.yml
 agentdock upgrade agentdock.yml --backup
+agentdock upgrade agentdock.yml --force --dry-run
 ```
 
 当前支持：
@@ -92,6 +93,7 @@ agentdock upgrade agentdock.yml --backup
 - `--json` 输出机器可读结果；与 `--dry-run` 组合时包含 diff 数组
 - `--write <path>` 写出升级后的新清单文件，不改原文件
 - `--backup` 原位升级前生成备份文件：`<manifest>.bak.<timestamp>`
+- `--force` 即使清单已是 v2，也按当前规则重新处理并输出差异
 
 ## 示例
 

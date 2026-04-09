@@ -27,6 +27,10 @@ function parseCliOptions(args: string[]): { positionals: string[]; options: Pars
       options.backup = true;
       continue;
     }
+    if (arg === '--force') {
+      options.force = true;
+      continue;
+    }
     if (arg === '--write') {
       const nextArg = args[index + 1];
       if (nextArg && !nextArg.startsWith('--')) {
