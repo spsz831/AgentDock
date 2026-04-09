@@ -37,6 +37,7 @@ export interface AgentDockInstall {
 export interface AgentDockOptions {
   includeHidden?: boolean;
   overwrite?: boolean;
+  followSymlinks?: boolean;
 }
 
 export interface AgentDockManifest {

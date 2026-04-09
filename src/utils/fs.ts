@@ -20,18 +20,57 @@ export async function writeTextFile(targetPath: string, content: string): Promis
   await fs.writeFile(targetPath, content, 'utf8');
 }
 
-async function walkDirectory(rootPath: string, currentPath = rootPath): Promise<string[]> {
+interface WalkedFile {
+  absolutePath: string;
+  relativePath: string;
+}
+
+async function walkDirectoryWithSymlinkPolicy(
+  currentPath: string,
+  relativeBase: string,
+  followSymlinks: boolean,
+  visitedRealDirectories = new Set<string>(),
+): Promise<WalkedFile[]> {
   const entries = await fs.readdir(currentPath, { withFileTypes: true });
-  const files: string[] = [];
+  const files: WalkedFile[] = [];
 
   for (const entry of entries) {
-    const fullPath = path.join(currentPath, entry.name);
+    const sourcePath = path.join(currentPath, entry.name);
+    const relativePath = path.join(relativeBase, entry.name).replace(/\\/g, '/');
+
     if (entry.isDirectory()) {
-      files.push(...await walkDirectory(rootPath, fullPath));
+      files.push(...await walkDirectoryWithSymlinkPolicy(sourcePath, relativePath, followSymlinks, visitedRealDirectories));
       continue;
     }
 
-    files.push(path.relative(rootPath, fullPath).replace(/\\/g, '/'));
+    if (entry.isFile()) {
+      files.push({ absolutePath: sourcePath, relativePath });
+      continue;
+    }
+
+    if (!entry.isSymbolicLink()) {
+      continue;
+    }
+
+    if (!followSymlinks) {
+      continue;
+    }
+
+    const resolvedPath = await fs.realpath(sourcePath);
+    const stat = await fs.stat(resolvedPath);
+
+    if (stat.isDirectory()) {
+      if (visitedRealDirectories.has(resolvedPath)) {
+        continue;
+      }
+      visitedRealDirectories.add(resolvedPath);
+      files.push(...await walkDirectoryWithSymlinkPolicy(resolvedPath, relativePath, followSymlinks, visitedRealDirectories));
+      continue;
+    }
+
+    if (stat.isFile()) {
+      files.push({ absolutePath: resolvedPath, relativePath });
+    }
   }
 
   return files;
@@ -42,26 +81,27 @@ export async function copyDirectoryFiltered(
   targetPath: string,
   include?: string[],
   exclude?: string[],
+  followSymlinks = true,
 ): Promise<void> {
-  const files = await walkDirectory(sourcePath);
+  const files = await walkDirectoryWithSymlinkPolicy(sourcePath, '', followSymlinks);
   const includePatterns = include?.length ? include : ['**/*'];
   const excludePatterns = exclude ?? [];
 
-  for (const relativeFile of files) {
-    const isIncluded = includePatterns.some((pattern) => minimatch(relativeFile, pattern, { dot: true }));
-    const isExcluded = excludePatterns.some((pattern) => minimatch(relativeFile, pattern, { dot: true }));
+  for (const file of files) {
+    const isIncluded = includePatterns.some((pattern) => minimatch(file.relativePath, pattern, { dot: true }));
+    const isExcluded = excludePatterns.some((pattern) => minimatch(file.relativePath, pattern, { dot: true }));
 
     if (!isIncluded || isExcluded) {
       continue;
     }
 
-    await copyFileSafe(path.join(sourcePath, relativeFile), path.join(targetPath, relativeFile));
+    await copyFileSafe(file.absolutePath, path.join(targetPath, file.relativePath));
   }
 }
 
-export async function copyDirectorySafe(sourcePath: string, targetPath: string): Promise<void> {
+export async function copyDirectorySafe(sourcePath: string, targetPath: string, followSymlinks = true): Promise<void> {
   await ensureDirectory(path.dirname(targetPath));
-  await fs.cp(sourcePath, targetPath, { recursive: true });
+  await fs.cp(sourcePath, targetPath, { recursive: true, dereference: followSymlinks });
 }
 
 export async function pathExists(targetPath: string): Promise<boolean> {
