@@ -2,29 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.1.1] - Draft
+## [0.1.1] - 2026-04-09
 
 ### Added
-- [ ] TODO: add new user-visible features for 0.1.1
+- Added `--verbose` for `upgrade` text mode to print full diff only when explicitly requested.
+- Added release draft commit grouping script: `npm run release:commits`.
+- Added `docs/releases/0.1.1-draft.md` auto-update marker block (`commits:auto:start/end`).
 
 ### Changed
-- [ ] TODO: add behavior changes for 0.1.1
-
-### Fixed
-- [ ] TODO: add bug fixes for 0.1.1
+- Unified `init` and `upgrade` JSON output into the same versioned envelope used by other commands.
+- Moved upgrade-specific JSON payload (`diff`, `summary`, versions, warnings) into `data`.
+- Standardized `upgrade` non-JSON output to summary-first format for stable human-readable consumption.
 
 ### Docs
-- [ ] TODO: add documentation updates for 0.1.1
+- Added `docs/release.md` release workflow and commit-group script usage.
+- Added `CHANGELOG.md` and linked release assets from `README.md`.
+- Updated manifest and README docs for JSON protocol, structured errors, and `upgrade --verbose`.
 
 ### Notes
 - Compatibility:
-  - Manifest schema impact: none (expected for patch release)
-  - JSON protocol impact: backward compatible (expected for patch release)
-- Validation:
-  - [ ] `npm run build`
-  - [ ] `npm test`
-  - [ ] `npm run cli -- validate agentdock.yml --json`
-  - [ ] `npm run cli -- upgrade agentdock.yml --dry-run --json`
+  - Manifest schema impact: none.
+  - JSON protocol impact: backward compatible for `schemaVersion: 1`; upgrade-specific fields now consistently nested under `data`.
 
 ## [0.1.0] - 2026-04-09
 
