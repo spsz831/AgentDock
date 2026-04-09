@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { runCli } from '../src/cli';
+import { UPGRADE_WARNING_CODES } from '../src/constants/upgrade-warning-codes';
 
 describe('cli upgrade command', () => {
   it('shows diff and does not write file when dry-run is enabled', async () => {
@@ -252,7 +253,7 @@ describe('cli upgrade command', () => {
     expect(payload.changed).toBe(true);
     expect(payload.summary?.addedDestinationCount).toBe(0);
     expect(payload.summary?.warningCount).toBe(1);
-    expect(payload.summary?.warnings?.[0]?.code).toBe('FORMAT_ONLY_CHANGE');
+    expect(payload.summary?.warnings?.[0]?.code).toBe(UPGRADE_WARNING_CODES.FORMAT_ONLY_CHANGE);
     expect(payload.summary?.warnings?.[0]?.message?.length).toBeGreaterThan(0);
   });
 });

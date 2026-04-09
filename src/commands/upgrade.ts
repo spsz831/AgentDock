@@ -2,6 +2,11 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { diffLines } from 'diff';
 import YAML from 'yaml';
+import {
+  UPGRADE_WARNING_CODES,
+  UPGRADE_WARNING_MESSAGES,
+  type UpgradeWarningCode,
+} from '../constants/upgrade-warning-codes';
 import { resolveSourceDestination } from '../core/source-destination';
 import type { AgentDockManifest, CommandResult, ParsedCliOptions } from '../manifest/types';
 
@@ -24,7 +29,7 @@ function countAddedDestinations(diffOutput: string[]): number {
 }
 
 type UpgradeWarning = {
-  code: string;
+  code: UpgradeWarningCode;
   message: string;
 };
 
@@ -35,8 +40,8 @@ function buildWarnings(changed: boolean, addedDestinationCount: number): Upgrade
   if (addedDestinationCount === 0) {
     return [
       {
-        code: 'FORMAT_ONLY_CHANGE',
-        message: 'Upgrade only changed formatting or normalization, no new destinations were introduced.',
+        code: UPGRADE_WARNING_CODES.FORMAT_ONLY_CHANGE,
+        message: UPGRADE_WARNING_MESSAGES[UPGRADE_WARNING_CODES.FORMAT_ONLY_CHANGE],
       },
     ];
   }
