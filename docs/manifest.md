@@ -64,6 +64,12 @@
 - 字段：
   - `includeHidden`：可选，布尔值
   - `overwrite`：可选，布尔值
+  - `followSymlinks`：可选，布尔值，默认 `true`
+
+#### followSymlinks 规则
+- `true`（默认）：导出目录时跟随符号链接/链接目录，复制其真实目标内容
+- `false`：导出目录时跳过符号链接/链接目录
+- 在 Windows 下若目录中存在链接项，建议显式设置该字段，避免权限差异导致导出失败
 
 ## 语义规则
 

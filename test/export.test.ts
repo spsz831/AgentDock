@@ -58,6 +58,16 @@ async function createTempManifest() {
   return { tempRoot, manifestPath };
 }
 
+async function tryCreateDirectoryLink(targetDir: string, linkPath: string): Promise<boolean> {
+  try {
+    const linkType = process.platform === 'win32' ? 'junction' : 'dir';
+    await fs.symlink(targetDir, linkPath, linkType as any);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 describe('cli export command', () => {
   it('writes install plan using source destination mappings', async () => {
     const { tempRoot, manifestPath } = await createTempManifest();
@@ -105,5 +115,95 @@ describe('cli export command', () => {
     const payload = JSON.parse(result.stdout[0] ?? '{}') as CommandJsonReport<{ manifestPath: string }>;
     expect(payload.success).toBe(false);
     expect(payload.errors[0]?.code).toBe(COMMAND_ERROR_CODES.TEMPLATE_VARIABLE_MISSING);
+  });
+
+  it('follows symlinked directories by default during filtered export', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agentdock-export-link-follow-'));
+    const workspaceDir = path.join(tempRoot, 'workspace');
+    const linkedTargetDir = path.join(tempRoot, 'linked-target');
+    await fs.mkdir(workspaceDir, { recursive: true });
+    await fs.mkdir(linkedTargetDir, { recursive: true });
+    await fs.writeFile(path.join(linkedTargetDir, 'from-link.txt'), 'linked-content', 'utf8');
+
+    const linkPath = path.join(workspaceDir, 'skills-link');
+    const linkCreated = await tryCreateDirectoryLink(linkedTargetDir, linkPath);
+    if (!linkCreated) {
+      expect(true).toBe(true);
+      return;
+    }
+
+    const manifestPath = path.join(tempRoot, 'agentdock.yml');
+    await fs.writeFile(
+      manifestPath,
+      [
+        'version: 2',
+        'project:',
+        '  name: export-link-follow',
+        'sources:',
+        '  - id: workspace',
+        '    type: directory',
+        '    path: ./workspace',
+        '    destination: ./restored/workspace',
+        '    include:',
+        '      - "**/*.txt"',
+        'outputs:',
+        '  type: directory',
+        '  path: ./dist/out',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const result = await runCli(['export', manifestPath]);
+    expect(result.exitCode).toBe(0);
+
+    await expect(
+      fs.readFile(path.join(tempRoot, 'dist', 'out', 'payload', 'sources', 'workspace', 'skills-link', 'from-link.txt'), 'utf8'),
+    ).resolves.toBe('linked-content');
+  });
+
+  it('skips symlinked directories when followSymlinks is false', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agentdock-export-link-skip-'));
+    const workspaceDir = path.join(tempRoot, 'workspace');
+    const linkedTargetDir = path.join(tempRoot, 'linked-target');
+    await fs.mkdir(workspaceDir, { recursive: true });
+    await fs.mkdir(linkedTargetDir, { recursive: true });
+    await fs.writeFile(path.join(linkedTargetDir, 'from-link.txt'), 'linked-content', 'utf8');
+
+    const linkPath = path.join(workspaceDir, 'skills-link');
+    const linkCreated = await tryCreateDirectoryLink(linkedTargetDir, linkPath);
+    if (!linkCreated) {
+      expect(true).toBe(true);
+      return;
+    }
+
+    const manifestPath = path.join(tempRoot, 'agentdock.yml');
+    await fs.writeFile(
+      manifestPath,
+      [
+        'version: 2',
+        'project:',
+        '  name: export-link-skip',
+        'sources:',
+        '  - id: workspace',
+        '    type: directory',
+        '    path: ./workspace',
+        '    destination: ./restored/workspace',
+        '    include:',
+        '      - "**/*.txt"',
+        'outputs:',
+        '  type: directory',
+        '  path: ./dist/out',
+        'options:',
+        '  followSymlinks: false',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const result = await runCli(['export', manifestPath]);
+    expect(result.exitCode).toBe(0);
+
+    await expect(
+      fs.access(path.join(tempRoot, 'dist', 'out', 'payload', 'sources', 'workspace', 'skills-link', 'from-link.txt')),
+    ).rejects.toBeTruthy();
   });
 });

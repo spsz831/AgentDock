@@ -71,7 +71,8 @@
       "additionalProperties": false,
       "properties": {
         "includeHidden": { "type": "boolean" },
-        "overwrite": { "type": "boolean" }
+        "overwrite": { "type": "boolean" },
+        "followSymlinks": { "type": "boolean" }
       }
     },
     "manifestV1": {

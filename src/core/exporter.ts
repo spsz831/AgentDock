@@ -32,6 +32,7 @@ export interface ExportResult {
 
 export async function exportManifest(manifest: AgentDockManifest, manifestDirectory: string): Promise<ExportResult> {
   const outputPath = resolveFrom(manifestDirectory, manifest.outputs.path);
+  const followSymlinks = manifest.options?.followSymlinks !== false;
   const payloadSourcesRoot = path.join(outputPath, 'payload', 'sources');
   const payloadTemplatesRoot = path.join(outputPath, 'payload', 'templates');
   const installPlan: InstallPlan = {
@@ -51,9 +52,9 @@ export async function exportManifest(manifest: AgentDockManifest, manifestDirect
 
     if (source.type === 'directory') {
       if ((source.include?.length ?? 0) > 0 || (source.exclude?.length ?? 0) > 0) {
-        await copyDirectoryFiltered(sourcePath, sourceRoot, source.include, source.exclude);
+        await copyDirectoryFiltered(sourcePath, sourceRoot, source.include, source.exclude, followSymlinks);
       } else {
-        await copyDirectorySafe(sourcePath, sourceRoot);
+        await copyDirectorySafe(sourcePath, sourceRoot, followSymlinks);
       }
       installPlan.sources.push({
         id: source.id,

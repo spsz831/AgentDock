@@ -47,6 +47,8 @@ npm run cli -- upgrade agentdock.yml --force --dry-run
 - `upgrade --backup` 原位升级前生成备份文件（`<manifest>.bak.<timestamp>`）
 - `upgrade --force` 即使已是 v2 也会按当前规则重新处理并输出 diff
 - templates 在 `export` 阶段完成 `{{VAR_NAME}}` 渲染
+- `options.followSymlinks` 默认是 `true`，导出目录时会跟随并复制链接目标内容
+- 设置 `options.followSymlinks: false` 可在导出时跳过链接目录/文件
 - `install` 默认会先做冲突预检查，发现任一目标已存在即终止
 - `install --overwrite` 允许覆盖已存在文件
 

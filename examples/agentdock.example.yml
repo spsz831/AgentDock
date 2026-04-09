@@ -32,4 +32,5 @@ install:
   overwrite: false
 options:
   includeHidden: true
+  followSymlinks: true
   overwrite: false
