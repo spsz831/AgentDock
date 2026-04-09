@@ -78,8 +78,39 @@ function toUpgradeData(
   };
 }
 
+function toTextLines(data: UpgradeCommandData, verbose: boolean): string[] {
+  const lines: string[] = [
+    'Upgrade summary:',
+    `manifest: ${data.manifestPath}`,
+    `output: ${data.outputPath ?? data.manifestPath}`,
+    `version: ${data.fromVersion} -> ${data.toVersion}`,
+    `mode: ${data.dryRun ? 'dry-run' : 'write'}`,
+    `changed: ${data.changed ? 'yes' : 'no'}`,
+    `sources: ${data.summary.sourceCount}`,
+    `templates: ${data.summary.templateCount}`,
+    `changedLines: ${data.summary.changedLineCount}`,
+    `addedDestinations: ${data.summary.addedDestinationCount}`,
+    `warnings: ${data.summary.warningCount}`,
+  ];
+
+  for (const warning of data.summary.warnings) {
+    lines.push(`warning.${warning.code}: ${warning.message}`);
+  }
+
+  if (verbose) {
+    lines.push('diff:');
+    if (data.diff.length === 0) {
+      lines.push('(no diff)');
+    } else {
+      lines.push(...data.diff);
+    }
+  }
+
+  return lines;
+}
+
 export async function runUpgradeCommand(manifestPath?: string, options: ParsedCliOptions = {}): Promise<CommandResult> {
-  const usage = 'Usage: agentdock upgrade <manifestPath> [--dry-run] [--json] [--write <path>] [--backup] [--force]';
+  const usage = 'Usage: agentdock upgrade <manifestPath> [--dry-run] [--json] [--verbose] [--write <path>] [--backup] [--force]';
 
   if (!manifestPath) {
     if (options.json === true) {
@@ -125,19 +156,19 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
     const fromVersion = manifest.version;
 
     if (manifest.version === 2 && options.force !== true) {
-      if (options.json === true) {
-        const data = toUpgradeData(
-          absolutePath,
-          2,
-          2,
-          false,
-          options.dryRun === true,
-          [],
-          manifest.sources.length,
-          manifest.templates?.length ?? 0,
-          requestedOutputPath,
-        );
+      const data = toUpgradeData(
+        absolutePath,
+        2,
+        2,
+        false,
+        options.dryRun === true,
+        [],
+        manifest.sources.length,
+        manifest.templates?.length ?? 0,
+        requestedOutputPath,
+      );
 
+      if (options.json === true) {
         return {
           exitCode: 0,
           stdout: [toJsonLine('upgrade', true, data, [])],
@@ -146,7 +177,7 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
       }
       return {
         exitCode: 0,
-        stdout: [`Manifest already at version 2: ${absolutePath}`],
+        stdout: toTextLines(data, options.verbose === true),
         stderr: [],
       };
     }
@@ -197,19 +228,19 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
     const diffOutput = renderDiff(raw, output);
 
     if (options.dryRun === true) {
-      if (options.json === true) {
-        const data = toUpgradeData(
-          absolutePath,
-          fromVersion,
-          2,
-          diffOutput.length > 0,
-          true,
-          diffOutput,
-          upgraded.sources.length,
-          upgraded.templates?.length ?? 0,
-          requestedOutputPath,
-        );
+      const data = toUpgradeData(
+        absolutePath,
+        fromVersion,
+        2,
+        diffOutput.length > 0,
+        true,
+        diffOutput,
+        upgraded.sources.length,
+        upgraded.templates?.length ?? 0,
+        requestedOutputPath,
+      );
 
+      if (options.json === true) {
         return {
           exitCode: 0,
           stdout: [toJsonLine('upgrade', true, data, [])],
@@ -218,10 +249,7 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
       }
       return {
         exitCode: 0,
-        stdout: [
-          `Dry run: manifest upgrade preview for ${absolutePath}`,
-          ...diffOutput,
-        ],
+        stdout: toTextLines(data, options.verbose === true),
         stderr: [],
       };
     }
@@ -235,19 +263,19 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
     await fs.mkdir(path.dirname(outputPath), { recursive: true });
     await fs.writeFile(outputPath, output, 'utf8');
 
-    if (options.json === true) {
-      const data = toUpgradeData(
-        absolutePath,
-        fromVersion,
-        2,
-        diffOutput.length > 0,
-        false,
-        diffOutput,
-        upgraded.sources.length,
-        upgraded.templates?.length ?? 0,
-        outputPath,
-      );
+    const data = toUpgradeData(
+      absolutePath,
+      fromVersion,
+      2,
+      diffOutput.length > 0,
+      false,
+      diffOutput,
+      upgraded.sources.length,
+      upgraded.templates?.length ?? 0,
+      outputPath,
+    );
 
+    if (options.json === true) {
       return {
         exitCode: 0,
         stdout: [toJsonLine('upgrade', true, data, [])],
@@ -257,10 +285,7 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
 
     return {
       exitCode: 0,
-      stdout: [
-        `Upgraded manifest to version 2: ${outputPath}`,
-        ...diffOutput,
-      ],
+      stdout: toTextLines(data, options.verbose === true),
       stderr: [],
     };
   } catch (error) {

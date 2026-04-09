@@ -80,6 +80,7 @@
 ```bash
 agentdock upgrade agentdock.yml
 agentdock upgrade agentdock.yml --dry-run
+agentdock upgrade agentdock.yml --dry-run --verbose
 agentdock upgrade agentdock.yml --dry-run --json
 agentdock upgrade agentdock.yml --write ./agentdock.v2.yml
 agentdock upgrade agentdock.yml --backup
@@ -90,6 +91,7 @@ agentdock upgrade agentdock.yml --force --dry-run
 - v1 -> v2
 - 自动补充 `sources[*].destination`
 - `--dry-run` 预览 diff，不写回清单
+- 文本模式默认输出稳定摘要；`--verbose` 时附加完整 diff
 - `--json` 输出机器可读结果；与 `--dry-run` 组合时包含 `diff` 与 `summary`
 - JSON 顶层包含协议版本字段：`schemaVersion`（当前固定为 `1`）
 - JSON 顶层包含审计字段：`generatedAt`（ISO 时间戳）、`toolVersion`（当前 CLI 版本）

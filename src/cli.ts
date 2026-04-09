@@ -23,6 +23,10 @@ function parseCliOptions(args: string[]): { positionals: string[]; options: Pars
       options.json = true;
       continue;
     }
+    if (arg === '--verbose') {
+      options.verbose = true;
+      continue;
+    }
     if (arg === '--backup') {
       options.backup = true;
       continue;

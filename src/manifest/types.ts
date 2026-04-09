@@ -64,6 +64,7 @@ export interface ParsedCliOptions {
   overwrite?: boolean;
   dryRun?: boolean;
   json?: boolean;
+  verbose?: boolean;
   writePath?: string;
   backup?: boolean;
   force?: boolean;

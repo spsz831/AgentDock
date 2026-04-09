@@ -22,6 +22,7 @@ npm run cli -- install ./dist/exported ./dist/restored
 npm run cli -- install ./dist/exported ./dist/restored --json
 npm run cli -- upgrade agentdock.yml
 npm run cli -- upgrade agentdock.yml --dry-run
+npm run cli -- upgrade agentdock.yml --dry-run --verbose
 npm run cli -- upgrade agentdock.yml --dry-run --json
 npm run cli -- upgrade agentdock.yml --write ./agentdock.v2.yml
 npm run cli -- upgrade agentdock.yml --backup
@@ -38,6 +39,7 @@ npm run cli -- upgrade agentdock.yml --force --dry-run
 - `upgrade --dry-run --json` 还包含 `summary`（`addedDestinationCount`、`changedLineCount`、`sourceCount`、`templateCount`、`warningCount`、`warnings`）
 - `init/validate/export/install/upgrade --json` 现已统一为版本化协议（`schemaVersion`、`generatedAt`、`toolVersion`、`command`、`success`、`data`、`errors`）
 - `upgrade --json` 的升级专用字段（如 `diff`、`summary`）已统一放入 `data`
+- `upgrade` 文本模式默认输出稳定摘要；仅在 `--verbose` 时附加 diff 详情
 - 所有 `--json` 的 `errors` 为结构化数组：`[{ code, message }]`
 - `upgrade --write <path>` 将升级结果写到新文件，保留原文件不变
 - `upgrade --backup` 原位升级前生成备份文件（`<manifest>.bak.<timestamp>`）

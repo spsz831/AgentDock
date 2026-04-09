@@ -8,7 +8,7 @@ import { UPGRADE_WARNING_CODES } from '../src/constants/upgrade-warning-codes';
 import type { UpgradeJsonReport } from '../src/types/upgrade-report';
 
 describe('cli upgrade command', () => {
-  it('shows diff and does not write file when dry-run is enabled', async () => {
+  it('prints stable summary without diff and does not write file in dry-run mode', async () => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agentdock-upgrade-'));
     const manifestPath = path.join(tempRoot, 'agentdock.yml');
     const original = [
@@ -28,10 +28,36 @@ describe('cli upgrade command', () => {
     const result = await runCli(['upgrade', manifestPath, '--dry-run']);
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout.some((line) => line.includes('Dry run'))).toBe(true);
-    expect(result.stdout.some((line) => line.includes('+version: 2'))).toBe(true);
+    expect(result.stdout.some((line) => line === 'Upgrade summary:')).toBe(true);
+    expect(result.stdout.some((line) => line.includes('mode: dry-run'))).toBe(true);
+    expect(result.stdout.some((line) => line.includes('version: 1 -> 2'))).toBe(true);
+    expect(result.stdout.some((line) => line.includes('+version: 2'))).toBe(false);
     const after = await fs.readFile(manifestPath, 'utf8');
     expect(after).toBe(original);
+  });
+
+  it('prints diff only when --verbose is enabled', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agentdock-upgrade-'));
+    const manifestPath = path.join(tempRoot, 'agentdock.yml');
+    const original = [
+      'version: 1',
+      'project:',
+      '  name: legacy-demo',
+      'sources:',
+      '  - id: workspace',
+      '    type: directory',
+      '    path: ./workspace',
+      'outputs:',
+      '  type: directory',
+      '  path: ./dist/out',
+    ].join('\n');
+
+    await fs.writeFile(manifestPath, original, 'utf8');
+    const result = await runCli(['upgrade', manifestPath, '--dry-run', '--verbose']);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.some((line) => line === 'diff:')).toBe(true);
+    expect(result.stdout.some((line) => line.includes('+version: 2'))).toBe(true);
   });
 
   it('emits json diff payload in dry-run json mode', async () => {
@@ -104,6 +130,8 @@ describe('cli upgrade command', () => {
     const result = await runCli(['upgrade', manifestPath]);
 
     expect(result.exitCode).toBe(0);
+    expect(result.stdout.some((line) => line === 'Upgrade summary:')).toBe(true);
+    expect(result.stdout.some((line) => line.includes('mode: write'))).toBe(true);
     const upgraded = await fs.readFile(manifestPath, 'utf8');
     expect(upgraded).toContain('version: 2');
     expect(upgraded).toContain('destination: ./workspace');
