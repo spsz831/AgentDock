@@ -16,6 +16,8 @@ This project currently follows a simple semver process:
    - `npm run cli -- validate agentdock.yml --json`
    - `npm run cli -- upgrade agentdock.yml --dry-run --json`
 4. Update `CHANGELOG.md` for the target version.
+5. Regenerate grouped commit section for the draft notes:
+   - `npm run release:commits -- --from <from-ref> --to <to-ref> --file docs/releases/<version>-draft.md`
 
 ## Cut a Patch Release (example: 0.1.1)
 
@@ -35,3 +37,18 @@ This project currently follows a simple semver process:
 - Validation:
   - `build` / `test` result.
   - Optional smoke command output summary.
+
+## Commit Grouping Script
+
+Command:
+
+- `npm run release:commits -- --from <from-ref> --to <to-ref> --file <draft-file>`
+
+Notes:
+
+- `--from` is required and is treated as exclusive boundary in `from..to`.
+- `--to` defaults to `HEAD`.
+- Commit grouping is based on conventional prefixes (`feat`, `fix`, `refactor`, `test`, `docs`, `chore`).
+- The target draft file must contain:
+  - `<!-- commits:auto:start -->`
+  - `<!-- commits:auto:end -->`

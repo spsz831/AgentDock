@@ -10,7 +10,8 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/cli.ts",
     "test": "vitest run",
-    "cli": "tsx src/cli.ts"
+    "cli": "tsx src/cli.ts",
+    "release:commits": "node scripts/generate-commit-groups.js"
   },
   "dependencies": {
     "ajv": "^8.17.1",
