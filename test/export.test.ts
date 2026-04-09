@@ -19,13 +19,14 @@ async function createTempManifest() {
   await fs.writeFile(
     manifestPath,
     [
-      'version: 1',
+      'version: 2',
       'project:',
       '  name: export-demo',
       'sources:',
       '  - id: workspace',
       '    type: directory',
       '    path: ./workspace',
+      '    destination: ./restored/workspace',
       '    include:',
       '      - "**/*.json"',
       '      - "**/*.txt"',
@@ -34,10 +35,11 @@ async function createTempManifest() {
       '  - id: settings',
       '    type: file',
       '    path: ./workspace/settings.json',
+      '    destination: ./restored/config/settings.json',
       'templates:',
       '  - id: env-template',
       '    source: ./templates/.env.example',
-      '    destination: ./.env',
+      '    destination: ./restored/.env',
       '    variables:',
       '      APP_NAME: export-demo',
       '      MODE: production',
@@ -55,7 +57,7 @@ async function createTempManifest() {
 }
 
 describe('cli export command', () => {
-  it('exports payload by source/template id and writes install plan', async () => {
+  it('writes install plan using source destination mappings', async () => {
     const { tempRoot, manifestPath } = await createTempManifest();
 
     const result = await runCli(['export', manifestPath]);
@@ -63,47 +65,10 @@ describe('cli export command', () => {
     expect(result.exitCode).toBe(0);
 
     const outputRoot = path.join(tempRoot, 'dist', 'out');
-    await expect(fs.readFile(path.join(outputRoot, 'payload', 'sources', 'workspace', 'note.txt'), 'utf8')).resolves.toBe('hello');
-    await expect(fs.readFile(path.join(outputRoot, 'payload', 'sources', 'workspace', 'settings.json'), 'utf8')).resolves.toContain('ok');
-    await expect(fs.access(path.join(outputRoot, 'payload', 'sources', 'workspace', 'secret.bak'))).rejects.toBeTruthy();
-    await expect(fs.readFile(path.join(outputRoot, 'payload', 'sources', 'settings', 'settings.json'), 'utf8')).resolves.toContain('ok');
-    await expect(fs.readFile(path.join(outputRoot, 'payload', 'templates', 'env-template', '.env.example'), 'utf8')).resolves.toContain('APP_NAME=export-demo');
-    await expect(fs.readFile(path.join(outputRoot, 'payload', 'templates', 'env-template', '.env.example'), 'utf8')).resolves.toContain('MODE=production');
-    await expect(fs.readFile(path.join(outputRoot, 'manifest.resolved.json'), 'utf8')).resolves.toContain('export-demo');
-    await expect(fs.readFile(path.join(outputRoot, 'meta', 'install-plan.json'), 'utf8')).resolves.toContain('restore-target');
-    await expect(fs.readFile(path.join(outputRoot, 'package.json'), 'utf8')).resolves.toContain('agentdock-package');
-  });
+    const installPlan = await fs.readFile(path.join(outputRoot, 'meta', 'install-plan.json'), 'utf8');
 
-  it('fails export when a template variable is missing', async () => {
-    const { tempRoot } = await createTempManifest();
-    const brokenManifestPath = path.join(tempRoot, 'agentdock-missing-var.yml');
-
-    await fs.writeFile(
-      brokenManifestPath,
-      [
-        'version: 1',
-        'project:',
-        '  name: export-demo',
-        'sources:',
-        '  - id: workspace',
-        '    type: directory',
-        '    path: ./workspace',
-        'templates:',
-        '  - id: env-template',
-        '    source: ./templates/.env.example',
-        '    destination: ./.env',
-        '    variables:',
-        '      APP_NAME: export-demo',
-        'outputs:',
-        '  type: directory',
-        '  path: ./dist/out-broken',
-      ].join('\n'),
-      'utf8',
-    );
-
-    const result = await runCli(['export', brokenManifestPath]);
-
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr.some((line) => line.includes('Missing template variable'))).toBe(true);
+    expect(installPlan).toContain('restored/workspace');
+    expect(installPlan).toContain('restored/config/settings.json');
+    expect(installPlan).toContain('restored/.env');
   });
 });

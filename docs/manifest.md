@@ -1,10 +1,18 @@
-# AgentDock Manifest v1.1
+# AgentDock Manifest v2
+
+## 版本策略
+
+- `version` 表示 manifest schema version
+- 当前版本为 `2`
+- `version: 1` 仍可被读取与校验，用于兼容旧清单
+- `upgrade` 命令可将 v1 自动升级到 v2
 
 ## 顶层字段
 
 ### version
 - 必填
-- 当前固定为 `1`
+- 当前支持：`1`、`2`
+- 推荐使用：`2`
 
 ### project
 - 必填对象
@@ -18,8 +26,15 @@
   - `id`：必填，唯一
   - `type`：必填，枚举：`file` | `directory`
   - `path`：必填，非空路径字符串
+  - `destination`：v2 新增，可选；安装目标相对路径
   - `include`：可选，字符串数组，仅 `directory` 可用
   - `exclude`：可选，字符串数组，仅 `directory` 可用
+
+#### destination 规则
+- `file`：若未填写，默认推导为 `./<原文件名>`
+- `directory`：若未填写，默认推导为 `./<source-id>/`
+- `export` 会把 destination 写入 install-plan
+- `install` 会按 destination 恢复目标路径
 
 ### templates
 - 可选数组
@@ -40,7 +55,7 @@
 ### install
 - 可选对象
 - 字段：
-  - `mode`：可选，`package` | `direct`，当前实现以 `package` 为主
+  - `mode`：可选，`package` | `direct`
   - `targetPath`：可选，默认安装目标路径
   - `overwrite`：可选，布尔值，作为 install 默认覆盖策略
 
@@ -52,66 +67,37 @@
 
 ## 语义规则
 
-- `version` 必须等于 `1`
 - `project.name` 必须存在且非空
 - `sources[*].id` 不能重复
 - `templates[*].id` 不能重复
 - `sources[*].type` 只能是 `file` 或 `directory`
 - `file` 类型 source 不能使用 `include` / `exclude`
-- `outputs.type` 在 v1.1 中只能是 `directory`
+- `outputs.type` 只能是 `directory`
 - `install.mode` 若存在，只能是 `package` 或 `direct`
-- 所有 `path` / `source` / `destination` 都必须是非空字符串
 
-## install 行为
+## upgrade
 
-- 默认：安装前预检查所有目标路径
-- 只要发现任一冲突，直接终止且不写入
-- 显式传 `--overwrite` 时允许覆盖
-- `manifest.install.overwrite` 可作为默认值，CLI `--overwrite` 优先级更高
+```bash
+agentdock upgrade agentdock.yml
+```
 
-## 非目标
-
-v1.1 暂不支持：
-
-- 插件执行
-- WebDAV 绑定
-- 多清单组合
-- 远程同步细节
-- direct install 正式执行
-- 高级模板语法（循环、条件、函数）
+当前支持：
+- v1 -> v2
+- 自动补充 `sources[*].destination`
 
 ## 示例
 
 ```yaml
-version: 1
+version: 2
 project:
   name: agentdock-demo
-  description: Minimal demo manifest
 sources:
   - id: workspace
     type: directory
     path: ./workspace
-    include:
-      - '**/*.json'
-      - '**/*.txt'
+    destination: ./restored/workspace
   - id: settings
     type: file
     path: ./workspace/settings.json
-templates:
-  - id: env-template
-    source: ./templates/.env.example
-    destination: ./.env
-    variables:
-      APP_NAME: agentdock-demo
-      MODE: production
-outputs:
-  type: directory
-  path: ./dist/exported
-install:
-  mode: package
-  targetPath: ./dist/restored
-  overwrite: false
-options:
-  includeHidden: true
-  overwrite: false
+    destination: ./restored/config/settings.json
 ```

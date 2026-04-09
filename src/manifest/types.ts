@@ -1,3 +1,4 @@
+export type ManifestVersion = 1 | 2;
 export type SourceType = 'file' | 'directory';
 export type InstallMode = 'package' | 'direct';
 
@@ -10,6 +11,7 @@ export interface AgentDockSource {
   id: string;
   type: SourceType;
   path: string;
+  destination?: string;
   include?: string[];
   exclude?: string[];
 }
@@ -38,7 +40,7 @@ export interface AgentDockOptions {
 }
 
 export interface AgentDockManifest {
-  version: 1;
+  version: ManifestVersion;
   project: AgentDockProject;
   sources: AgentDockSource[];
   templates?: AgentDockTemplate[];

@@ -1,4 +1,4 @@
-version: 1
+version: 2
 project:
   name: agentdock-demo
   description: Minimal demo manifest
@@ -6,6 +6,7 @@ sources:
   - id: workspace
     type: directory
     path: ./workspace
+    destination: ./restored/workspace
     include:
       - '**/*.json'
       - '**/*.txt'
@@ -14,10 +15,11 @@ sources:
   - id: settings
     type: file
     path: ./workspace/settings.json
+    destination: ./restored/config/settings.json
 templates:
   - id: env-template
     source: ./templates/.env.example
-    destination: ./.env
+    destination: ./restored/.env
     variables:
       APP_NAME: agentdock-demo
       MODE: production

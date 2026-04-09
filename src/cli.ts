@@ -1,6 +1,7 @@
 import { runExportCommand } from './commands/export';
 import { runInitCommand } from './commands/init';
 import { runInstallCommand } from './commands/install';
+import { runUpgradeCommand } from './commands/upgrade';
 import { runValidateCommand } from './commands/validate';
 import type { CommandResult, ParsedCliOptions } from './manifest/types';
 
@@ -32,11 +33,13 @@ export async function runCli(args: string[]): Promise<CommandResult> {
       return runInitCommand(positionals[0]);
     case 'install':
       return runInstallCommand(positionals[0], positionals[1], options);
+    case 'upgrade':
+      return runUpgradeCommand(positionals[0]);
     default:
       return {
         exitCode: 1,
         stdout: [],
-        stderr: ['Usage: agentdock <init|validate|export|install> [path]'],
+        stderr: ['Usage: agentdock <init|validate|export|install|upgrade> [path]'],
       };
   }
 }

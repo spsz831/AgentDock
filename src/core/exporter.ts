@@ -1,6 +1,7 @@
 import path from 'node:path';
 import type { AgentDockManifest } from '../manifest/types';
 import { renderTemplateFile } from './template-renderer';
+import { resolveSourceDestination } from './source-destination';
 import { copyDirectoryFiltered, copyDirectorySafe, copyFileSafe, ensureDirectory, resolveFrom, writeJsonFile, writeTextFile } from '../utils/fs';
 
 export interface InstallPlanEntry {
@@ -46,6 +47,7 @@ export async function exportManifest(manifest: AgentDockManifest, manifestDirect
   for (const source of manifest.sources) {
     const sourcePath = resolveFrom(manifestDirectory, source.path);
     const sourceRoot = path.join(payloadSourcesRoot, source.id);
+    const destination = resolveSourceDestination(source);
 
     if (source.type === 'directory') {
       if ((source.include?.length ?? 0) > 0 || (source.exclude?.length ?? 0) > 0) {
@@ -57,7 +59,7 @@ export async function exportManifest(manifest: AgentDockManifest, manifestDirect
         id: source.id,
         kind: 'directory',
         from: path.join('payload', 'sources', source.id),
-        to: source.id,
+        to: destination,
       });
       continue;
     }
@@ -68,7 +70,7 @@ export async function exportManifest(manifest: AgentDockManifest, manifestDirect
       id: source.id,
       kind: 'file',
       from: path.join('payload', 'sources', source.id, fileName),
-      to: fileName,
+      to: destination,
     });
   }
 
@@ -78,7 +80,7 @@ export async function exportManifest(manifest: AgentDockManifest, manifestDirect
     installPlan.templates.push({
       id: template.id,
       from: path.join('payload', 'templates', template.id, rendered.fileName),
-      to: path.basename(template.destination),
+      to: template.destination,
     });
   }
 

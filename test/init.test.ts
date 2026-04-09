@@ -11,7 +11,7 @@ describe('cli init command', () => {
     const result = await runCli(['init', tempRoot]);
 
     expect(result.exitCode).toBe(0);
-    await expect(fs.readFile(path.join(tempRoot, 'agentdock.yml'), 'utf8')).resolves.toContain('version: 1');
+    await expect(fs.readFile(path.join(tempRoot, 'agentdock.yml'), 'utf8')).resolves.toContain('version: 2');
   });
 
   it('does not overwrite an existing manifest by default', async () => {

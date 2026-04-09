@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentdock.local/schemas/agentdock.schema.json",
-  "type": "object",
-  "additionalProperties": false,
-  "required": ["version", "project", "sources", "outputs"],
-  "properties": {
-    "version": { "type": "integer", "const": 1 },
+  "oneOf": [
+    { "$ref": "#/$defs/manifestV1" },
+    { "$ref": "#/$defs/manifestV2" }
+  ],
+  "$defs": {
     "project": {
       "type": "object",
       "additionalProperties": false,
@@ -15,42 +15,36 @@
         "description": { "type": "string" }
       }
     },
-    "sources": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["id", "type", "path"],
-        "properties": {
-          "id": { "type": "string", "minLength": 1 },
-          "type": { "type": "string", "enum": ["file", "directory"] },
-          "path": { "type": "string", "minLength": 1 },
-          "include": {
-            "type": "array",
-            "items": { "type": "string", "minLength": 1 }
-          },
-          "exclude": {
-            "type": "array",
-            "items": { "type": "string", "minLength": 1 }
-          }
-        }
+    "sourceBase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "path"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "enum": ["file", "directory"] },
+        "path": { "type": "string", "minLength": 1 },
+        "include": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "exclude": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "destination": { "type": "string", "minLength": 1 }
       }
     },
-    "templates": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["id", "source", "destination"],
-        "properties": {
-          "id": { "type": "string", "minLength": 1 },
-          "source": { "type": "string", "minLength": 1 },
-          "destination": { "type": "string", "minLength": 1 },
-          "variables": {
-            "type": "object",
-            "additionalProperties": { "type": "string" }
-          }
+    "template": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "source", "destination"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 },
+        "destination": { "type": "string", "minLength": 1 },
+        "variables": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
         }
       }
     },
@@ -78,6 +72,48 @@
       "properties": {
         "includeHidden": { "type": "boolean" },
         "overwrite": { "type": "boolean" }
+      }
+    },
+    "manifestV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "project", "sources", "outputs"],
+      "properties": {
+        "version": { "type": "integer", "const": 1 },
+        "project": { "$ref": "#/$defs/project" },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/sourceBase" }
+        },
+        "templates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/template" }
+        },
+        "outputs": { "$ref": "#/$defs/outputs" },
+        "install": { "$ref": "#/$defs/install" },
+        "options": { "$ref": "#/$defs/options" }
+      }
+    },
+    "manifestV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "project", "sources", "outputs"],
+      "properties": {
+        "version": { "type": "integer", "const": 2 },
+        "project": { "$ref": "#/$defs/project" },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/sourceBase" }
+        },
+        "templates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/template" }
+        },
+        "outputs": { "$ref": "#/$defs/outputs" },
+        "install": { "$ref": "#/$defs/install" },
+        "options": { "$ref": "#/$defs/options" }
       }
     }
   }
