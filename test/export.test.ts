@@ -3,6 +3,8 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { runCli } from '../src/cli';
+import { COMMAND_ERROR_CODES } from '../src/constants/command-error-codes';
+import type { CommandJsonReport } from '../src/types/command-report';
 
 async function createTempManifest() {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agentdock-export-'));
@@ -70,5 +72,38 @@ describe('cli export command', () => {
     expect(installPlan).toContain('restored/workspace');
     expect(installPlan).toContain('restored/config/settings.json');
     expect(installPlan).toContain('restored/.env');
+  });
+
+  it('returns versioned json output for success', async () => {
+    const { manifestPath } = await createTempManifest();
+    const result = await runCli(['export', manifestPath, '--json']);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toEqual([]);
+    const payload = JSON.parse(result.stdout[0] ?? '{}') as CommandJsonReport<{
+      manifestPath: string;
+      outputPath: string;
+      snapshotPath: string;
+      installPlanPath: string;
+    }>;
+    expect(payload.schemaVersion).toBe(1);
+    expect(Number.isNaN(Date.parse(payload.generatedAt))).toBe(false);
+    expect(payload.command).toBe('export');
+    expect(payload.success).toBe(true);
+    expect(payload.data.outputPath.length).toBeGreaterThan(0);
+    expect(payload.errors).toEqual([]);
+  });
+
+  it('returns stable error code when template variable is missing in json mode', async () => {
+    const { tempRoot, manifestPath } = await createTempManifest();
+    await fs.writeFile(path.join(tempRoot, 'templates', '.env.example'), 'APP_NAME={{APP_NAME}}\nSECRET={{SECRET}}', 'utf8');
+
+    const result = await runCli(['export', manifestPath, '--json']);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toEqual([]);
+    const payload = JSON.parse(result.stdout[0] ?? '{}') as CommandJsonReport<{ manifestPath: string }>;
+    expect(payload.success).toBe(false);
+    expect(payload.errors[0]?.code).toBe(COMMAND_ERROR_CODES.TEMPLATE_VARIABLE_MISSING);
   });
 });

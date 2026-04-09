@@ -3,6 +3,8 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { runCli } from '../src/cli';
+import { COMMAND_ERROR_CODES } from '../src/constants/command-error-codes';
+import type { CommandJsonReport } from '../src/types/command-report';
 
 async function createPackageFixture() {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agentdock-install-'));
@@ -73,5 +75,45 @@ describe('cli install command', () => {
     expect(result.exitCode).toBe(0);
     await expect(fs.readFile(path.join(targetRoot, 'workspace', 'note.txt'), 'utf8')).resolves.toBe('hello');
     await expect(fs.readFile(path.join(targetRoot, 'settings.json'), 'utf8')).resolves.toContain('ok');
+  });
+
+  it('returns versioned json output for success', async () => {
+    const { tempRoot, packageRoot } = await createPackageFixture();
+    const targetRoot = path.join(tempRoot, 'json-target');
+
+    const result = await runCli(['install', packageRoot, targetRoot, '--json']);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toEqual([]);
+    const payload = JSON.parse(result.stdout[0] ?? '{}') as CommandJsonReport<{
+      packagePath: string;
+      targetPath: string;
+      overwrite: boolean;
+    }>;
+    expect(payload.schemaVersion).toBe(1);
+    expect(Number.isNaN(Date.parse(payload.generatedAt))).toBe(false);
+    expect(payload.command).toBe('install');
+    expect(payload.success).toBe(true);
+    expect(payload.data.targetPath).toBe(path.resolve(targetRoot));
+    expect(payload.errors).toEqual([]);
+  });
+
+  it('returns stable error code for conflicts in json mode', async () => {
+    const { tempRoot, packageRoot } = await createPackageFixture();
+    const targetRoot = path.join(tempRoot, 'json-conflict-target');
+    await fs.mkdir(path.join(targetRoot, 'workspace'), { recursive: true });
+    await fs.writeFile(path.join(targetRoot, 'workspace', 'note.txt'), 'existing', 'utf8');
+
+    const result = await runCli(['install', packageRoot, targetRoot, '--json']);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toEqual([]);
+    const payload = JSON.parse(result.stdout[0] ?? '{}') as CommandJsonReport<{
+      packagePath: string;
+      targetPath: string | null;
+      overwrite: boolean;
+    }>;
+    expect(payload.success).toBe(false);
+    expect(payload.errors[0]?.code).toBe(COMMAND_ERROR_CODES.INSTALL_CONFLICT);
   });
 });

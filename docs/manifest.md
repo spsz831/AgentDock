@@ -100,6 +100,30 @@ agentdock upgrade agentdock.yml --force --dry-run
 - `--backup` 原位升级前生成备份文件：`<manifest>.bak.<timestamp>`
 - `--force` 即使清单已是 v2，也按当前规则重新处理并输出差异
 
+## JSON 协议（validate / export / install / upgrade）
+
+- 当前稳定协议版本：`schemaVersion: 1`
+- 公共顶层字段：
+  - `schemaVersion`
+  - `generatedAt`（ISO 时间戳）
+  - `toolVersion`（CLI 版本）
+  - `command`
+- `validate/export/install` 统一结构：
+  - `success`：是否成功
+  - `data`：命令结果数据
+  - `errors`：结构化错误列表 `[{ code, message }]`
+- `upgrade` 继续使用升级专用结构，并保留上述公共顶层字段
+
+### validate/export/install 错误码
+
+- `MANIFEST_NOT_FOUND`
+- `MANIFEST_INVALID`
+- `TEMPLATE_VARIABLE_MISSING`
+- `MISSING_PACKAGE_MANIFEST`
+- `MISSING_INSTALL_PLAN`
+- `INSTALL_CONFLICT`
+- `UNKNOWN_ERROR`
+
 ## 示例
 
 ```yaml
