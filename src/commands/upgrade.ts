@@ -5,10 +5,10 @@ import YAML from 'yaml';
 import {
   UPGRADE_WARNING_CODES,
   UPGRADE_WARNING_MESSAGES,
-  type UpgradeWarningCode,
 } from '../constants/upgrade-warning-codes';
 import { resolveSourceDestination } from '../core/source-destination';
 import type { AgentDockManifest, CommandResult, ParsedCliOptions } from '../manifest/types';
+import type { UpgradeJsonReport, UpgradeWarning } from '../types/upgrade-report';
 
 function renderDiff(beforeText: string, afterText: string): string[] {
   const lines: string[] = [];
@@ -27,11 +27,6 @@ function renderDiff(beforeText: string, afterText: string): string[] {
 function countAddedDestinations(diffOutput: string[]): number {
   return diffOutput.filter((line) => line.startsWith('+') && line.includes('destination: ')).length;
 }
-
-type UpgradeWarning = {
-  code: UpgradeWarningCode;
-  message: string;
-};
 
 function buildWarnings(changed: boolean, addedDestinationCount: number): UpgradeWarning[] {
   if (!changed) {
@@ -62,7 +57,7 @@ function toJsonLine(
   const changedLineCount = diffOutput.filter((line) => line.startsWith('+') || line.startsWith('-')).length;
   const addedDestinationCount = countAddedDestinations(diffOutput);
   const warnings = buildWarnings(changed, addedDestinationCount);
-  return JSON.stringify({
+  const payload: UpgradeJsonReport = {
     command: 'upgrade',
     manifestPath,
     outputPath,
@@ -79,7 +74,9 @@ function toJsonLine(
       warningCount: warnings.length,
       warnings,
     },
-  });
+  };
+
+  return JSON.stringify(payload);
 }
 
 export async function runUpgradeCommand(manifestPath?: string, options: ParsedCliOptions = {}): Promise<CommandResult> {

@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { runCli } from '../src/cli';
 import { UPGRADE_WARNING_CODES } from '../src/constants/upgrade-warning-codes';
+import type { UpgradeJsonReport } from '../src/types/upgrade-report';
 
 describe('cli upgrade command', () => {
   it('shows diff and does not write file when dry-run is enabled', async () => {
@@ -53,32 +54,18 @@ describe('cli upgrade command', () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout.length).toBe(1);
-    const payload = JSON.parse(result.stdout[0] ?? '{}') as {
-      dryRun: boolean;
-      changed: boolean;
-      fromVersion: number;
-      toVersion: number;
-      diff: string[];
-      summary?: {
-        addedDestinationCount: number;
-        changedLineCount: number;
-        sourceCount: number;
-        templateCount: number;
-        warningCount: number;
-        warnings: Array<{ code: string; message: string }>;
-      };
-    };
+    const payload = JSON.parse(result.stdout[0] ?? '{}') as UpgradeJsonReport;
     expect(payload.dryRun).toBe(true);
     expect(payload.changed).toBe(true);
     expect(payload.fromVersion).toBe(1);
     expect(payload.toVersion).toBe(2);
     expect(payload.diff.some((line) => line.includes('+version: 2'))).toBe(true);
-    expect(payload.summary?.addedDestinationCount).toBe(1);
-    expect((payload.summary?.changedLineCount ?? 0) > 0).toBe(true);
-    expect(payload.summary?.sourceCount).toBe(1);
-    expect(payload.summary?.templateCount).toBe(0);
-    expect(payload.summary?.warningCount).toBe(0);
-    expect(payload.summary?.warnings).toEqual([]);
+    expect(payload.summary.addedDestinationCount).toBe(1);
+    expect(payload.summary.changedLineCount > 0).toBe(true);
+    expect(payload.summary.sourceCount).toBe(1);
+    expect(payload.summary.templateCount).toBe(0);
+    expect(payload.summary.warningCount).toBe(0);
+    expect(payload.summary.warnings).toEqual([]);
 
     const after = await fs.readFile(manifestPath, 'utf8');
     expect(after).toBe(original);
@@ -138,7 +125,7 @@ describe('cli upgrade command', () => {
     const result = await runCli(['upgrade', sourceManifestPath, '--write', targetManifestPath, '--json']);
 
     expect(result.exitCode).toBe(0);
-    const payload = JSON.parse(result.stdout[0] ?? '{}') as { changed: boolean; outputPath?: string };
+    const payload = JSON.parse(result.stdout[0] ?? '{}') as UpgradeJsonReport;
     expect(payload.changed).toBe(true);
     expect(payload.outputPath).toBe(path.resolve(targetManifestPath));
 
@@ -202,15 +189,11 @@ describe('cli upgrade command', () => {
     const result = await runCli(['upgrade', manifestPath, '--force', '--json']);
 
     expect(result.exitCode).toBe(0);
-    const payload = JSON.parse(result.stdout[0] ?? '{}') as {
-      changed: boolean;
-      diff: string[];
-      summary?: { warningCount: number; warnings: Array<{ code: string; message: string }> };
-    };
+    const payload = JSON.parse(result.stdout[0] ?? '{}') as UpgradeJsonReport;
     expect(payload.changed).toBe(true);
     expect(payload.diff.some((line) => line.includes('+    destination: ./workspace'))).toBe(true);
-    expect(payload.summary?.warningCount).toBe(0);
-    expect(payload.summary?.warnings).toEqual([]);
+    expect(payload.summary.warningCount).toBe(0);
+    expect(payload.summary.warnings).toEqual([]);
     const upgraded = await fs.readFile(manifestPath, 'utf8');
     expect(upgraded).toContain('destination: ./workspace');
   });
@@ -242,18 +225,11 @@ describe('cli upgrade command', () => {
     const result = await runCli(['upgrade', manifestPath, '--force', '--dry-run', '--json']);
 
     expect(result.exitCode).toBe(0);
-    const payload = JSON.parse(result.stdout[0] ?? '{}') as {
-      changed: boolean;
-      summary?: {
-        warningCount: number;
-        addedDestinationCount: number;
-        warnings: Array<{ code: string; message: string }>;
-      };
-    };
+    const payload = JSON.parse(result.stdout[0] ?? '{}') as UpgradeJsonReport;
     expect(payload.changed).toBe(true);
-    expect(payload.summary?.addedDestinationCount).toBe(0);
-    expect(payload.summary?.warningCount).toBe(1);
-    expect(payload.summary?.warnings?.[0]?.code).toBe(UPGRADE_WARNING_CODES.FORMAT_ONLY_CHANGE);
-    expect(payload.summary?.warnings?.[0]?.message?.length).toBeGreaterThan(0);
+    expect(payload.summary.addedDestinationCount).toBe(0);
+    expect(payload.summary.warningCount).toBe(1);
+    expect(payload.summary.warnings[0]?.code).toBe(UPGRADE_WARNING_CODES.FORMAT_ONLY_CHANGE);
+    expect(payload.summary.warnings[0]?.message?.length).toBeGreaterThan(0);
   });
 });
