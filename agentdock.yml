@@ -1,0 +1,17 @@
+version: 1
+project:
+  name: agentdock-local
+  description: Local development manifest
+sources:
+  - id: workspace
+    type: directory
+    path: ./workspace
+  - id: settings
+    type: file
+    path: ./workspace/settings.json
+outputs:
+  type: directory
+  path: ./dist/exported
+options:
+  includeHidden: true
+  overwrite: true

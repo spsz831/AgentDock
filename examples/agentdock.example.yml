@@ -1,0 +1,17 @@
+version: 1
+project:
+  name: agentdock-demo
+  description: Minimal demo manifest
+sources:
+  - id: workspace
+    type: directory
+    path: ./workspace
+  - id: settings
+    type: file
+    path: ./workspace/settings.json
+outputs:
+  type: directory
+  path: ./dist/exported
+options:
+  includeHidden: true
+  overwrite: false

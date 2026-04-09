@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentdock.local/schemas/agentdock.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "project", "sources", "outputs"],
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type", "path"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "type": { "type": "string", "enum": ["file", "directory"] },
+          "path": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "path"],
+      "properties": {
+        "type": { "type": "string", "const": "directory" },
+        "path": { "type": "string", "minLength": 1 }
+      }
+    },
+    "options": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "includeHidden": { "type": "boolean" },
+        "overwrite": { "type": "boolean" }
+      }
+    }
+  }
+}
