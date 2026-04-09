@@ -61,6 +61,8 @@ describe('cli upgrade command', () => {
       summary?: {
         addedDestinationCount: number;
         changedLineCount: number;
+        sourceCount: number;
+        templateCount: number;
       };
     };
     expect(payload.dryRun).toBe(true);
@@ -70,6 +72,8 @@ describe('cli upgrade command', () => {
     expect(payload.diff.some((line) => line.includes('+version: 2'))).toBe(true);
     expect(payload.summary?.addedDestinationCount).toBe(1);
     expect((payload.summary?.changedLineCount ?? 0) > 0).toBe(true);
+    expect(payload.summary?.sourceCount).toBe(1);
+    expect(payload.summary?.templateCount).toBe(0);
 
     const after = await fs.readFile(manifestPath, 'utf8');
     expect(after).toBe(original);

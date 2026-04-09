@@ -30,6 +30,8 @@ function toJsonLine(
   changed: boolean,
   dryRun: boolean,
   diffOutput: string[],
+  sourceCount: number,
+  templateCount: number,
   outputPath?: string,
 ): string {
   const changedLineCount = diffOutput.filter((line) => line.startsWith('+') || line.startsWith('-')).length;
@@ -45,6 +47,8 @@ function toJsonLine(
     summary: {
       addedDestinationCount: countAddedDestinations(diffOutput),
       changedLineCount,
+      sourceCount,
+      templateCount,
     },
   });
 }
@@ -69,7 +73,17 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
       if (options.json === true) {
         return {
           exitCode: 0,
-          stdout: [toJsonLine(absolutePath, 2, 2, false, options.dryRun === true, [], requestedOutputPath)],
+          stdout: [toJsonLine(
+            absolutePath,
+            2,
+            2,
+            false,
+            options.dryRun === true,
+            [],
+            manifest.sources.length,
+            manifest.templates?.length ?? 0,
+            requestedOutputPath,
+          )],
           stderr: [],
         };
       }
@@ -104,7 +118,17 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
       if (options.json === true) {
         return {
           exitCode: 0,
-          stdout: [toJsonLine(absolutePath, fromVersion, 2, diffOutput.length > 0, true, diffOutput, requestedOutputPath)],
+          stdout: [toJsonLine(
+            absolutePath,
+            fromVersion,
+            2,
+            diffOutput.length > 0,
+            true,
+            diffOutput,
+            upgraded.sources.length,
+            upgraded.templates?.length ?? 0,
+            requestedOutputPath,
+          )],
           stderr: [],
         };
       }
@@ -130,7 +154,17 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
     if (options.json === true) {
       return {
         exitCode: 0,
-        stdout: [toJsonLine(absolutePath, fromVersion, 2, diffOutput.length > 0, false, diffOutput, outputPath)],
+        stdout: [toJsonLine(
+          absolutePath,
+          fromVersion,
+          2,
+          diffOutput.length > 0,
+          false,
+          diffOutput,
+          upgraded.sources.length,
+          upgraded.templates?.length ?? 0,
+          outputPath,
+        )],
         stderr: [],
       };
     }
