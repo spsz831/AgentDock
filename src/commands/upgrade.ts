@@ -35,6 +35,8 @@ function toJsonLine(
   outputPath?: string,
 ): string {
   const changedLineCount = diffOutput.filter((line) => line.startsWith('+') || line.startsWith('-')).length;
+  const addedDestinationCount = countAddedDestinations(diffOutput);
+  const warningCount = changed && addedDestinationCount === 0 ? 1 : 0;
   return JSON.stringify({
     command: 'upgrade',
     manifestPath,
@@ -45,10 +47,11 @@ function toJsonLine(
     dryRun,
     diff: diffOutput,
     summary: {
-      addedDestinationCount: countAddedDestinations(diffOutput),
+      addedDestinationCount,
       changedLineCount,
       sourceCount,
       templateCount,
+      warningCount,
     },
   });
 }

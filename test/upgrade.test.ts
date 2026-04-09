@@ -63,6 +63,7 @@ describe('cli upgrade command', () => {
         changedLineCount: number;
         sourceCount: number;
         templateCount: number;
+        warningCount: number;
       };
     };
     expect(payload.dryRun).toBe(true);
@@ -74,6 +75,7 @@ describe('cli upgrade command', () => {
     expect((payload.summary?.changedLineCount ?? 0) > 0).toBe(true);
     expect(payload.summary?.sourceCount).toBe(1);
     expect(payload.summary?.templateCount).toBe(0);
+    expect(payload.summary?.warningCount).toBe(0);
 
     const after = await fs.readFile(manifestPath, 'utf8');
     expect(after).toBe(original);
@@ -197,10 +199,51 @@ describe('cli upgrade command', () => {
     const result = await runCli(['upgrade', manifestPath, '--force', '--json']);
 
     expect(result.exitCode).toBe(0);
-    const payload = JSON.parse(result.stdout[0] ?? '{}') as { changed: boolean; diff: string[] };
+    const payload = JSON.parse(result.stdout[0] ?? '{}') as {
+      changed: boolean;
+      diff: string[];
+      summary?: { warningCount: number };
+    };
     expect(payload.changed).toBe(true);
     expect(payload.diff.some((line) => line.includes('+    destination: ./workspace'))).toBe(true);
+    expect(payload.summary?.warningCount).toBe(0);
     const upgraded = await fs.readFile(manifestPath, 'utf8');
     expect(upgraded).toContain('destination: ./workspace');
+  });
+
+  it('reports warningCount for formatting-only force changes', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agentdock-upgrade-'));
+    const manifestPath = path.join(tempRoot, 'agentdock.v2.format.yml');
+
+    await fs.writeFile(
+      manifestPath,
+      [
+        'version: 2',
+        'project:',
+        '  name: v2-demo',
+        'sources:',
+        '  - id: workspace',
+        '    type: directory',
+        '    path: ./workspace',
+        '    destination: ./workspace',
+        '    include:',
+        "      - '**/*.json'",
+        'outputs:',
+        '  type: directory',
+        '  path: ./dist/out',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const result = await runCli(['upgrade', manifestPath, '--force', '--dry-run', '--json']);
+
+    expect(result.exitCode).toBe(0);
+    const payload = JSON.parse(result.stdout[0] ?? '{}') as {
+      changed: boolean;
+      summary?: { warningCount: number; addedDestinationCount: number };
+    };
+    expect(payload.changed).toBe(true);
+    expect(payload.summary?.addedDestinationCount).toBe(0);
+    expect(payload.summary?.warningCount).toBe(1);
   });
 });
