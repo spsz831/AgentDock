@@ -56,6 +56,7 @@ describe('cli upgrade command', () => {
     expect(result.stdout.length).toBe(1);
     const payload = JSON.parse(result.stdout[0] ?? '{}') as UpgradeJsonReport;
     expect(payload.dryRun).toBe(true);
+    expect(payload.schemaVersion).toBe(1);
     expect(payload.changed).toBe(true);
     expect(payload.fromVersion).toBe(1);
     expect(payload.toVersion).toBe(2);
@@ -127,6 +128,7 @@ describe('cli upgrade command', () => {
     expect(result.exitCode).toBe(0);
     const payload = JSON.parse(result.stdout[0] ?? '{}') as UpgradeJsonReport;
     expect(payload.changed).toBe(true);
+    expect(payload.schemaVersion).toBe(1);
     expect(payload.outputPath).toBe(path.resolve(targetManifestPath));
 
     const sourceAfter = await fs.readFile(sourceManifestPath, 'utf8');
@@ -191,6 +193,7 @@ describe('cli upgrade command', () => {
     expect(result.exitCode).toBe(0);
     const payload = JSON.parse(result.stdout[0] ?? '{}') as UpgradeJsonReport;
     expect(payload.changed).toBe(true);
+    expect(payload.schemaVersion).toBe(1);
     expect(payload.diff.some((line) => line.includes('+    destination: ./workspace'))).toBe(true);
     expect(payload.summary.warningCount).toBe(0);
     expect(payload.summary.warnings).toEqual([]);
@@ -227,6 +230,7 @@ describe('cli upgrade command', () => {
     expect(result.exitCode).toBe(0);
     const payload = JSON.parse(result.stdout[0] ?? '{}') as UpgradeJsonReport;
     expect(payload.changed).toBe(true);
+    expect(payload.schemaVersion).toBe(1);
     expect(payload.summary.addedDestinationCount).toBe(0);
     expect(payload.summary.warningCount).toBe(1);
     expect(payload.summary.warnings[0]?.code).toBe(UPGRADE_WARNING_CODES.FORMAT_ONLY_CHANGE);

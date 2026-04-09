@@ -58,6 +58,7 @@ function toJsonLine(
   const addedDestinationCount = countAddedDestinations(diffOutput);
   const warnings = buildWarnings(changed, addedDestinationCount);
   const payload: UpgradeJsonReport = {
+    schemaVersion: 1,
     command: 'upgrade',
     manifestPath,
     outputPath,

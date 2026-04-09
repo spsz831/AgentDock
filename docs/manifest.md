@@ -91,6 +91,7 @@ agentdock upgrade agentdock.yml --force --dry-run
 - 自动补充 `sources[*].destination`
 - `--dry-run` 预览 diff，不写回清单
 - `--json` 输出机器可读结果；与 `--dry-run` 组合时包含 `diff` 与 `summary`
+- JSON 顶层包含协议版本字段：`schemaVersion`（当前固定为 `1`）
 - `summary` 当前字段：`addedDestinationCount`、`changedLineCount`、`sourceCount`、`templateCount`、`warningCount`、`warnings`
 - `warnings` 结构：`[{ code, message }]`
 - 当前稳定 `warning code`：`FORMAT_ONLY_CHANGE`
