@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { diffLines } from 'diff';
 import YAML from 'yaml';
+import packageJson from '../../package.json';
 import {
   UPGRADE_WARNING_CODES,
   UPGRADE_WARNING_MESSAGES,
@@ -59,6 +60,8 @@ function toJsonLine(
   const warnings = buildWarnings(changed, addedDestinationCount);
   const payload: UpgradeJsonReport = {
     schemaVersion: 1,
+    generatedAt: new Date().toISOString(),
+    toolVersion: packageJson.version,
     command: 'upgrade',
     manifestPath,
     outputPath,

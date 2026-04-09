@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import packageJson from '../package.json';
 import { runCli } from '../src/cli';
 import { UPGRADE_WARNING_CODES } from '../src/constants/upgrade-warning-codes';
 import type { UpgradeJsonReport } from '../src/types/upgrade-report';
@@ -57,6 +58,8 @@ describe('cli upgrade command', () => {
     const payload = JSON.parse(result.stdout[0] ?? '{}') as UpgradeJsonReport;
     expect(payload.dryRun).toBe(true);
     expect(payload.schemaVersion).toBe(1);
+    expect(Number.isNaN(Date.parse(payload.generatedAt))).toBe(false);
+    expect(payload.toolVersion).toBe(packageJson.version);
     expect(payload.changed).toBe(true);
     expect(payload.fromVersion).toBe(1);
     expect(payload.toVersion).toBe(2);

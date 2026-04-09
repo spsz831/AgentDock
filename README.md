@@ -33,6 +33,7 @@ npm run cli -- upgrade agentdock.yml --force --dry-run
 - `upgrade --dry-run --json` 输出机器可读 diff 结果（单行 JSON）
 - `upgrade --dry-run --json` 还包含 `summary`（`addedDestinationCount`、`changedLineCount`、`sourceCount`、`templateCount`、`warningCount`、`warnings`）
 - `upgrade --json` 顶层包含稳定协议版本：`schemaVersion: 1`
+- `upgrade --json` 顶层还包含审计字段：`generatedAt`（ISO 时间）和 `toolVersion`
 - `upgrade --write <path>` 将升级结果写到新文件，保留原文件不变
 - `upgrade --backup` 原位升级前生成备份文件（`<manifest>.bak.<timestamp>`）
 - `upgrade --force` 即使已是 v2 也会按当前规则重新处理并输出 diff

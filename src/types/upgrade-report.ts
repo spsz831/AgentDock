@@ -16,6 +16,8 @@ export type UpgradeSummary = {
 
 export type UpgradeJsonReport = {
   schemaVersion: 1;
+  generatedAt: string;
+  toolVersion: string;
   command: 'upgrade';
   manifestPath: string;
   outputPath?: string;
