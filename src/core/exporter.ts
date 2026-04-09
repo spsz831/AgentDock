@@ -1,6 +1,7 @@
 import path from 'node:path';
 import type { AgentDockManifest } from '../manifest/types';
-import { copyDirectoryFiltered, copyDirectorySafe, copyFileSafe, ensureDirectory, resolveFrom, writeJsonFile } from '../utils/fs';
+import { renderTemplateFile } from './template-renderer';
+import { copyDirectoryFiltered, copyDirectorySafe, copyFileSafe, ensureDirectory, resolveFrom, writeJsonFile, writeTextFile } from '../utils/fs';
 
 export interface InstallPlanEntry {
   id: string;
@@ -17,6 +18,7 @@ export interface TemplatePlanEntry {
 
 export interface InstallPlan {
   targetPath?: string;
+  overwrite?: boolean;
   sources: InstallPlanEntry[];
   templates: TemplatePlanEntry[];
 }
@@ -33,6 +35,7 @@ export async function exportManifest(manifest: AgentDockManifest, manifestDirect
   const payloadTemplatesRoot = path.join(outputPath, 'payload', 'templates');
   const installPlan: InstallPlan = {
     targetPath: manifest.install?.targetPath,
+    overwrite: manifest.install?.overwrite ?? false,
     sources: [],
     templates: [],
   };
@@ -70,12 +73,11 @@ export async function exportManifest(manifest: AgentDockManifest, manifestDirect
   }
 
   for (const template of manifest.templates ?? []) {
-    const templatePath = resolveFrom(manifestDirectory, template.source);
-    const fileName = path.basename(template.source);
-    await copyFileSafe(templatePath, path.join(payloadTemplatesRoot, template.id, fileName));
+    const rendered = await renderTemplateFile(template, manifestDirectory);
+    await writeTextFile(path.join(payloadTemplatesRoot, template.id, rendered.fileName), rendered.content);
     installPlan.templates.push({
       id: template.id,
-      from: path.join('payload', 'templates', template.id, fileName),
+      from: path.join('payload', 'templates', template.id, rendered.fileName),
       to: path.basename(template.destination),
     });
   }

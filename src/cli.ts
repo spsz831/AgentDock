@@ -1,20 +1,37 @@
 import { runExportCommand } from './commands/export';
 import { runInitCommand } from './commands/init';
 import { runInstallCommand } from './commands/install';
-import { runValidateCommand, type CommandResult } from './commands/validate';
+import { runValidateCommand } from './commands/validate';
+import type { CommandResult, ParsedCliOptions } from './manifest/types';
+
+function parseCliOptions(args: string[]): { positionals: string[]; options: ParsedCliOptions } {
+  const positionals: string[] = [];
+  const options: ParsedCliOptions = {};
+
+  for (const arg of args) {
+    if (arg === '--overwrite') {
+      options.overwrite = true;
+      continue;
+    }
+    positionals.push(arg);
+  }
+
+  return { positionals, options };
+}
 
 export async function runCli(args: string[]): Promise<CommandResult> {
   const [command, ...rest] = args;
+  const { positionals, options } = parseCliOptions(rest);
 
   switch (command) {
     case 'validate':
-      return runValidateCommand(rest[0]);
+      return runValidateCommand(positionals[0]);
     case 'export':
-      return runExportCommand(rest[0]);
+      return runExportCommand(positionals[0]);
     case 'init':
-      return runInitCommand(rest[0]);
+      return runInitCommand(positionals[0]);
     case 'install':
-      return runInstallCommand(rest[0], rest[1]);
+      return runInstallCommand(positionals[0], positionals[1], options);
     default:
       return {
         exitCode: 1,

@@ -28,6 +28,8 @@
   - `source`：必填，模板源路径
   - `destination`：必填，目标相对路径
   - `variables`：可选，键值对
+- 模板在 `export` 阶段完成 `{{VAR_NAME}}` 渲染
+- 缺失变量时 `export` 直接失败
 
 ### outputs
 - 必填对象
@@ -40,7 +42,7 @@
 - 字段：
   - `mode`：可选，`package` | `direct`，当前实现以 `package` 为主
   - `targetPath`：可选，默认安装目标路径
-  - `overwrite`：可选，布尔值
+  - `overwrite`：可选，布尔值，作为 install 默认覆盖策略
 
 ### options
 - 可选对象
@@ -60,6 +62,13 @@
 - `install.mode` 若存在，只能是 `package` 或 `direct`
 - 所有 `path` / `source` / `destination` 都必须是非空字符串
 
+## install 行为
+
+- 默认：安装前预检查所有目标路径
+- 只要发现任一冲突，直接终止且不写入
+- 显式传 `--overwrite` 时允许覆盖
+- `manifest.install.overwrite` 可作为默认值，CLI `--overwrite` 优先级更高
+
 ## 非目标
 
 v1.1 暂不支持：
@@ -68,8 +77,8 @@ v1.1 暂不支持：
 - WebDAV 绑定
 - 多清单组合
 - 远程同步细节
-- 完整模板渲染
 - direct install 正式执行
+- 高级模板语法（循环、条件、函数）
 
 ## 示例
 
@@ -94,6 +103,7 @@ templates:
     destination: ./.env
     variables:
       APP_NAME: agentdock-demo
+      MODE: production
 outputs:
   type: directory
   path: ./dist/exported

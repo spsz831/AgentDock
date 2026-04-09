@@ -14,12 +14,13 @@ async function createPackageFixture() {
 
   await fs.writeFile(path.join(packageRoot, 'payload', 'sources', 'workspace', 'note.txt'), 'hello', 'utf8');
   await fs.writeFile(path.join(packageRoot, 'payload', 'sources', 'settings', 'settings.json'), '{"ok":true}', 'utf8');
-  await fs.writeFile(path.join(packageRoot, 'payload', 'templates', 'env-template', '.env.example'), 'APP_NAME={{APP_NAME}}', 'utf8');
-  await fs.writeFile(path.join(packageRoot, 'manifest.resolved.json'), JSON.stringify({ project: { name: 'pkg-demo' } }, null, 2), 'utf8');
+  await fs.writeFile(path.join(packageRoot, 'payload', 'templates', 'env-template', '.env.example'), 'APP_NAME=rendered', 'utf8');
+  await fs.writeFile(path.join(packageRoot, 'manifest.resolved.json'), JSON.stringify({ project: { name: 'pkg-demo' }, install: { overwrite: false } }, null, 2), 'utf8');
   await fs.writeFile(
     path.join(packageRoot, 'meta', 'install-plan.json'),
     JSON.stringify({
       targetPath: './restored',
+      overwrite: false,
       sources: [
         { id: 'workspace', kind: 'directory', from: 'payload/sources/workspace', to: 'workspace' },
         { id: 'settings', kind: 'file', from: 'payload/sources/settings/settings.json', to: 'settings.json' },
@@ -44,6 +45,33 @@ describe('cli install command', () => {
     expect(result.exitCode).toBe(0);
     await expect(fs.readFile(path.join(targetRoot, 'workspace', 'note.txt'), 'utf8')).resolves.toBe('hello');
     await expect(fs.readFile(path.join(targetRoot, 'settings.json'), 'utf8')).resolves.toContain('ok');
-    await expect(fs.readFile(path.join(targetRoot, '.env.example'), 'utf8')).resolves.toContain('APP_NAME');
+    await expect(fs.readFile(path.join(targetRoot, '.env.example'), 'utf8')).resolves.toContain('APP_NAME=rendered');
+  });
+
+  it('fails before writing when a target file already exists', async () => {
+    const { tempRoot, packageRoot } = await createPackageFixture();
+    const targetRoot = path.join(tempRoot, 'conflict-target');
+    await fs.mkdir(path.join(targetRoot, 'workspace'), { recursive: true });
+    await fs.writeFile(path.join(targetRoot, 'workspace', 'note.txt'), 'existing', 'utf8');
+
+    const result = await runCli(['install', packageRoot, targetRoot]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr.some((line) => line.includes('conflict'))).toBe(true);
+    await expect(fs.readFile(path.join(targetRoot, 'workspace', 'note.txt'), 'utf8')).resolves.toBe('existing');
+    await expect(fs.access(path.join(targetRoot, 'settings.json'))).rejects.toBeTruthy();
+  });
+
+  it('overwrites existing files when overwrite flag is provided', async () => {
+    const { tempRoot, packageRoot } = await createPackageFixture();
+    const targetRoot = path.join(tempRoot, 'overwrite-target');
+    await fs.mkdir(path.join(targetRoot, 'workspace'), { recursive: true });
+    await fs.writeFile(path.join(targetRoot, 'workspace', 'note.txt'), 'existing', 'utf8');
+
+    const result = await runCli(['install', packageRoot, targetRoot, '--overwrite']);
+
+    expect(result.exitCode).toBe(0);
+    await expect(fs.readFile(path.join(targetRoot, 'workspace', 'note.txt'), 'utf8')).resolves.toBe('hello');
+    await expect(fs.readFile(path.join(targetRoot, 'settings.json'), 'utf8')).resolves.toContain('ok');
   });
 });

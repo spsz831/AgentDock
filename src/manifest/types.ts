@@ -57,3 +57,13 @@ export interface ValidationResult {
   valid: boolean;
   errors: string[];
 }
+
+export interface ParsedCliOptions {
+  overwrite?: boolean;
+}
+
+export interface CommandResult {
+  exitCode: number;
+  stdout: string[];
+  stderr: string[];
+}

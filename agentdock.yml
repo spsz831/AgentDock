@@ -9,6 +9,8 @@ sources:
     include:
       - '**/*.json'
       - '**/*.txt'
+    exclude:
+      - '**/*.bak'
   - id: settings
     type: file
     path: ./workspace/settings.json
@@ -18,13 +20,14 @@ templates:
     destination: ./.env
     variables:
       APP_NAME: agentdock-local
+      MODE: development
 outputs:
   type: directory
   path: ./dist/exported
 install:
   mode: package
   targetPath: ./dist/restored
-  overwrite: true
+  overwrite: false
 options:
   includeHidden: true
   overwrite: true

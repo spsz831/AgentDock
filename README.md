@@ -24,4 +24,12 @@ npm run cli -- init .
 npm run cli -- validate agentdock.yml
 npm run cli -- export agentdock.yml
 npm run cli -- install ./dist/exported ./dist/restored
+npm run cli -- install ./dist/exported ./dist/restored --overwrite
 ```
+
+## Current behavior
+
+- templates 在 `export` 阶段完成 `{{VAR_NAME}}` 渲染
+- 缺失模板变量会导致 `export` 失败
+- `install` 默认会先做冲突预检查，发现任一目标已存在即终止
+- `install --overwrite` 允许覆盖已存在文件

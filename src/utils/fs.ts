@@ -15,6 +15,11 @@ export async function copyFileSafe(sourcePath: string, targetPath: string): Prom
   await fs.copyFile(sourcePath, targetPath);
 }
 
+export async function writeTextFile(targetPath: string, content: string): Promise<void> {
+  await ensureDirectory(path.dirname(targetPath));
+  await fs.writeFile(targetPath, content, 'utf8');
+}
+
 async function walkDirectory(rootPath: string, currentPath = rootPath): Promise<string[]> {
   const entries = await fs.readdir(currentPath, { withFileTypes: true });
   const files: string[] = [];

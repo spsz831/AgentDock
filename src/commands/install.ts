@@ -1,17 +1,17 @@
 import { installPackage } from '../core/installer';
-import type { CommandResult } from './validate';
+import type { CommandResult, ParsedCliOptions } from '../manifest/types';
 
-export async function runInstallCommand(packagePath?: string, targetPath?: string): Promise<CommandResult> {
+export async function runInstallCommand(packagePath?: string, targetPath?: string, options: ParsedCliOptions = {}): Promise<CommandResult> {
   if (!packagePath) {
     return {
       exitCode: 1,
       stdout: [],
-      stderr: ['Usage: agentdock install <packagePath> [targetPath]'],
+      stderr: ['Usage: agentdock install <packagePath> [targetPath] [--overwrite]'],
     };
   }
 
   try {
-    const result = await installPackage(packagePath, targetPath);
+    const result = await installPackage(packagePath, targetPath, options.overwrite === true);
     return {
       exitCode: 0,
       stdout: [`Install completed: ${result.targetPath}`],

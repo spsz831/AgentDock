@@ -20,6 +20,7 @@ templates:
     destination: ./.env
     variables:
       APP_NAME: agentdock-demo
+      MODE: production
 outputs:
   type: directory
   path: ./dist/exported
