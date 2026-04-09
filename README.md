@@ -31,7 +31,7 @@ npm run cli -- upgrade agentdock.yml --force --dry-run
 - `upgrade` 可将 v1 升级为 v2
 - `upgrade --dry-run` 可先查看 diff 预览，不写回文件
 - `upgrade --dry-run --json` 输出机器可读 diff 结果（单行 JSON）
-- `upgrade --dry-run --json` 还包含 `summary`（`addedDestinationCount`、`changedLineCount`、`sourceCount`、`templateCount`、`warningCount`）
+- `upgrade --dry-run --json` 还包含 `summary`（`addedDestinationCount`、`changedLineCount`、`sourceCount`、`templateCount`、`warningCount`、`warnings`）
 - `upgrade --write <path>` 将升级结果写到新文件，保留原文件不变
 - `upgrade --backup` 原位升级前生成备份文件（`<manifest>.bak.<timestamp>`）
 - `upgrade --force` 即使已是 v2 也会按当前规则重新处理并输出 diff

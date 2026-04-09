@@ -64,6 +64,7 @@ describe('cli upgrade command', () => {
         sourceCount: number;
         templateCount: number;
         warningCount: number;
+        warnings: Array<{ code: string; message: string }>;
       };
     };
     expect(payload.dryRun).toBe(true);
@@ -76,6 +77,7 @@ describe('cli upgrade command', () => {
     expect(payload.summary?.sourceCount).toBe(1);
     expect(payload.summary?.templateCount).toBe(0);
     expect(payload.summary?.warningCount).toBe(0);
+    expect(payload.summary?.warnings).toEqual([]);
 
     const after = await fs.readFile(manifestPath, 'utf8');
     expect(after).toBe(original);
@@ -202,11 +204,12 @@ describe('cli upgrade command', () => {
     const payload = JSON.parse(result.stdout[0] ?? '{}') as {
       changed: boolean;
       diff: string[];
-      summary?: { warningCount: number };
+      summary?: { warningCount: number; warnings: Array<{ code: string; message: string }> };
     };
     expect(payload.changed).toBe(true);
     expect(payload.diff.some((line) => line.includes('+    destination: ./workspace'))).toBe(true);
     expect(payload.summary?.warningCount).toBe(0);
+    expect(payload.summary?.warnings).toEqual([]);
     const upgraded = await fs.readFile(manifestPath, 'utf8');
     expect(upgraded).toContain('destination: ./workspace');
   });
@@ -240,10 +243,16 @@ describe('cli upgrade command', () => {
     expect(result.exitCode).toBe(0);
     const payload = JSON.parse(result.stdout[0] ?? '{}') as {
       changed: boolean;
-      summary?: { warningCount: number; addedDestinationCount: number };
+      summary?: {
+        warningCount: number;
+        addedDestinationCount: number;
+        warnings: Array<{ code: string; message: string }>;
+      };
     };
     expect(payload.changed).toBe(true);
     expect(payload.summary?.addedDestinationCount).toBe(0);
     expect(payload.summary?.warningCount).toBe(1);
+    expect(payload.summary?.warnings?.[0]?.code).toBe('FORMAT_ONLY_CHANGE');
+    expect(payload.summary?.warnings?.[0]?.message?.length).toBeGreaterThan(0);
   });
 });

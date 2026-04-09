@@ -23,6 +23,26 @@ function countAddedDestinations(diffOutput: string[]): number {
   return diffOutput.filter((line) => line.startsWith('+') && line.includes('destination: ')).length;
 }
 
+type UpgradeWarning = {
+  code: string;
+  message: string;
+};
+
+function buildWarnings(changed: boolean, addedDestinationCount: number): UpgradeWarning[] {
+  if (!changed) {
+    return [];
+  }
+  if (addedDestinationCount === 0) {
+    return [
+      {
+        code: 'FORMAT_ONLY_CHANGE',
+        message: 'Upgrade only changed formatting or normalization, no new destinations were introduced.',
+      },
+    ];
+  }
+  return [];
+}
+
 function toJsonLine(
   manifestPath: string,
   fromVersion: number,
@@ -36,7 +56,7 @@ function toJsonLine(
 ): string {
   const changedLineCount = diffOutput.filter((line) => line.startsWith('+') || line.startsWith('-')).length;
   const addedDestinationCount = countAddedDestinations(diffOutput);
-  const warningCount = changed && addedDestinationCount === 0 ? 1 : 0;
+  const warnings = buildWarnings(changed, addedDestinationCount);
   return JSON.stringify({
     command: 'upgrade',
     manifestPath,
@@ -51,7 +71,8 @@ function toJsonLine(
       changedLineCount,
       sourceCount,
       templateCount,
-      warningCount,
+      warningCount: warnings.length,
+      warnings,
     },
   });
 }
