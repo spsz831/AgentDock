@@ -109,6 +109,11 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
     }
 
     const outputPath = requestedOutputPath ?? absolutePath;
+    if (options.backup === true && outputPath === absolutePath) {
+      const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, '');
+      const backupPath = `${absolutePath}.bak.${timestamp}`;
+      await fs.copyFile(absolutePath, backupPath);
+    }
     await fs.mkdir(path.dirname(outputPath), { recursive: true });
     await fs.writeFile(outputPath, output, 'utf8');
 

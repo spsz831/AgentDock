@@ -133,4 +133,33 @@ describe('cli upgrade command', () => {
     expect(targetAfter).toContain('version: 2');
     expect(targetAfter).toContain('destination: ./workspace');
   });
+
+  it('creates backup file before in-place upgrade when --backup is enabled', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agentdock-upgrade-'));
+    const manifestPath = path.join(tempRoot, 'agentdock.yml');
+    const original = [
+      'version: 1',
+      'project:',
+      '  name: legacy-demo',
+      'sources:',
+      '  - id: workspace',
+      '    type: directory',
+      '    path: ./workspace',
+      'outputs:',
+      '  type: directory',
+      '  path: ./dist/out',
+    ].join('\n');
+
+    await fs.writeFile(manifestPath, original, 'utf8');
+    const result = await runCli(['upgrade', manifestPath, '--backup']);
+
+    expect(result.exitCode).toBe(0);
+    const files = await fs.readdir(tempRoot);
+    const backupName = files.find((file) => file.startsWith('agentdock.yml.bak.'));
+    expect(backupName).toBeTruthy();
+    const backupContent = await fs.readFile(path.join(tempRoot, backupName ?? ''), 'utf8');
+    const upgradedContent = await fs.readFile(manifestPath, 'utf8');
+    expect(backupContent).toBe(original);
+    expect(upgradedContent).toContain('version: 2');
+  });
 });

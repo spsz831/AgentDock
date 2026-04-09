@@ -23,6 +23,10 @@ function parseCliOptions(args: string[]): { positionals: string[]; options: Pars
       options.json = true;
       continue;
     }
+    if (arg === '--backup') {
+      options.backup = true;
+      continue;
+    }
     if (arg === '--write') {
       const nextArg = args[index + 1];
       if (nextArg && !nextArg.startsWith('--')) {
