@@ -1,4 +1,5 @@
 export type SourceType = 'file' | 'directory';
+export type InstallMode = 'package' | 'direct';
 
 export interface AgentDockProject {
   name: string;
@@ -9,11 +10,26 @@ export interface AgentDockSource {
   id: string;
   type: SourceType;
   path: string;
+  include?: string[];
+  exclude?: string[];
+}
+
+export interface AgentDockTemplate {
+  id: string;
+  source: string;
+  destination: string;
+  variables?: Record<string, string>;
 }
 
 export interface AgentDockOutput {
   type: 'directory';
   path: string;
+}
+
+export interface AgentDockInstall {
+  mode?: InstallMode;
+  targetPath?: string;
+  overwrite?: boolean;
 }
 
 export interface AgentDockOptions {
@@ -25,7 +41,9 @@ export interface AgentDockManifest {
   version: 1;
   project: AgentDockProject;
   sources: AgentDockSource[];
+  templates?: AgentDockTemplate[];
   outputs: AgentDockOutput;
+  install?: AgentDockInstall;
   options?: AgentDockOptions;
 }
 

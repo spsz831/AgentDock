@@ -1,5 +1,6 @@
 import { runExportCommand } from './commands/export';
 import { runInitCommand } from './commands/init';
+import { runInstallCommand } from './commands/install';
 import { runValidateCommand, type CommandResult } from './commands/validate';
 
 export async function runCli(args: string[]): Promise<CommandResult> {
@@ -12,11 +13,13 @@ export async function runCli(args: string[]): Promise<CommandResult> {
       return runExportCommand(rest[0]);
     case 'init':
       return runInitCommand(rest[0]);
+    case 'install':
+      return runInstallCommand(rest[0], rest[1]);
     default:
       return {
         exitCode: 1,
         stdout: [],
-        stderr: ['Usage: agentdock <init|validate|export> [path]'],
+        stderr: ['Usage: agentdock <init|validate|export|install> [path]'],
       };
   }
 }

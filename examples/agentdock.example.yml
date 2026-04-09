@@ -6,12 +6,27 @@ sources:
   - id: workspace
     type: directory
     path: ./workspace
+    include:
+      - '**/*.json'
+      - '**/*.txt'
+    exclude:
+      - '**/*.bak'
   - id: settings
     type: file
     path: ./workspace/settings.json
+templates:
+  - id: env-template
+    source: ./templates/.env.example
+    destination: ./.env
+    variables:
+      APP_NAME: agentdock-demo
 outputs:
   type: directory
   path: ./dist/exported
+install:
+  mode: package
+  targetPath: ./dist/restored
+  overwrite: false
 options:
   includeHidden: true
   overwrite: false

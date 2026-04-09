@@ -7,9 +7,13 @@ import { runCli } from '../src/cli';
 async function createTempManifest() {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agentdock-export-'));
   const workspaceDir = path.join(tempRoot, 'workspace');
+  const templatesDir = path.join(tempRoot, 'templates');
   await fs.mkdir(workspaceDir, { recursive: true });
+  await fs.mkdir(templatesDir, { recursive: true });
   await fs.writeFile(path.join(workspaceDir, 'settings.json'), '{"ok":true}', 'utf8');
   await fs.writeFile(path.join(workspaceDir, 'note.txt'), 'hello', 'utf8');
+  await fs.writeFile(path.join(workspaceDir, 'secret.bak'), 'ignore-me', 'utf8');
+  await fs.writeFile(path.join(templatesDir, '.env.example'), 'APP_NAME={{APP_NAME}}', 'utf8');
 
   const manifestPath = path.join(tempRoot, 'agentdock.yml');
   await fs.writeFile(
@@ -22,12 +26,26 @@ async function createTempManifest() {
       '  - id: workspace',
       '    type: directory',
       '    path: ./workspace',
+      '    include:',
+      '      - "**/*.json"',
+      '      - "**/*.txt"',
+      '    exclude:',
+      '      - "**/*.bak"',
       '  - id: settings',
       '    type: file',
       '    path: ./workspace/settings.json',
+      'templates:',
+      '  - id: env-template',
+      '    source: ./templates/.env.example',
+      '    destination: ./.env',
+      '    variables:',
+      '      APP_NAME: export-demo',
       'outputs:',
       '  type: directory',
       '  path: ./dist/out',
+      'install:',
+      '  mode: package',
+      '  targetPath: ./restore-target',
     ].join('\n'),
     'utf8',
   );
@@ -36,7 +54,7 @@ async function createTempManifest() {
 }
 
 describe('cli export command', () => {
-  it('exports declared sources and manifest snapshot', async () => {
+  it('exports payload by source/template id and writes install plan', async () => {
     const { tempRoot, manifestPath } = await createTempManifest();
 
     const result = await runCli(['export', manifestPath]);
@@ -44,8 +62,13 @@ describe('cli export command', () => {
     expect(result.exitCode).toBe(0);
 
     const outputRoot = path.join(tempRoot, 'dist', 'out');
-    await expect(fs.readFile(path.join(outputRoot, 'workspace', 'note.txt'), 'utf8')).resolves.toBe('hello');
-    await expect(fs.readFile(path.join(outputRoot, 'settings.json'), 'utf8')).resolves.toContain('ok');
+    await expect(fs.readFile(path.join(outputRoot, 'payload', 'sources', 'workspace', 'note.txt'), 'utf8')).resolves.toBe('hello');
+    await expect(fs.readFile(path.join(outputRoot, 'payload', 'sources', 'workspace', 'settings.json'), 'utf8')).resolves.toContain('ok');
+    await expect(fs.access(path.join(outputRoot, 'payload', 'sources', 'workspace', 'secret.bak'))).rejects.toBeTruthy();
+    await expect(fs.readFile(path.join(outputRoot, 'payload', 'sources', 'settings', 'settings.json'), 'utf8')).resolves.toContain('ok');
+    await expect(fs.readFile(path.join(outputRoot, 'payload', 'templates', 'env-template', '.env.example'), 'utf8')).resolves.toContain('APP_NAME');
     await expect(fs.readFile(path.join(outputRoot, 'manifest.resolved.json'), 'utf8')).resolves.toContain('export-demo');
+    await expect(fs.readFile(path.join(outputRoot, 'meta', 'install-plan.json'), 'utf8')).resolves.toContain('restore-target');
+    await expect(fs.readFile(path.join(outputRoot, 'package.json'), 'utf8')).resolves.toContain('agentdock-package');
   });
 });

@@ -25,7 +25,32 @@
         "properties": {
           "id": { "type": "string", "minLength": 1 },
           "type": { "type": "string", "enum": ["file", "directory"] },
-          "path": { "type": "string", "minLength": 1 }
+          "path": { "type": "string", "minLength": 1 },
+          "include": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "exclude": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "templates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "source", "destination"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "source": { "type": "string", "minLength": 1 },
+          "destination": { "type": "string", "minLength": 1 },
+          "variables": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
         }
       }
     },
@@ -36,6 +61,15 @@
       "properties": {
         "type": { "type": "string", "const": "directory" },
         "path": { "type": "string", "minLength": 1 }
+      }
+    },
+    "install": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": { "type": "string", "enum": ["package", "direct"] },
+        "targetPath": { "type": "string", "minLength": 1 },
+        "overwrite": { "type": "boolean" }
       }
     },
     "options": {

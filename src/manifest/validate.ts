@@ -31,13 +31,25 @@ export function validateManifest(manifest: unknown): ValidationResult {
   }
 
   const typedManifest = manifest as AgentDockManifest;
-  const seenIds = new Set<string>();
+  const seenSourceIds = new Set<string>();
+  const seenTemplateIds = new Set<string>();
 
   for (const source of typedManifest.sources) {
-    if (seenIds.has(source.id)) {
+    if (seenSourceIds.has(source.id)) {
       errors.push(`Duplicate source id: ${source.id}`);
     }
-    seenIds.add(source.id);
+    seenSourceIds.add(source.id);
+
+    if (source.type === 'file' && ((source.include?.length ?? 0) > 0 || (source.exclude?.length ?? 0) > 0)) {
+      errors.push(`Source ${source.id} cannot use include/exclude when type=file`);
+    }
+  }
+
+  for (const template of typedManifest.templates ?? []) {
+    if (seenTemplateIds.has(template.id)) {
+      errors.push(`Duplicate template id: ${template.id}`);
+    }
+    seenTemplateIds.add(template.id);
   }
 
   return {
