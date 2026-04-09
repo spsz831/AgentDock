@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.1] - Draft
+
+### Added
+- [ ] TODO: add new user-visible features for 0.1.1
+
+### Changed
+- [ ] TODO: add behavior changes for 0.1.1
+
+### Fixed
+- [ ] TODO: add bug fixes for 0.1.1
+
+### Docs
+- [ ] TODO: add documentation updates for 0.1.1
+
+### Notes
+- Compatibility:
+  - Manifest schema impact: none (expected for patch release)
+  - JSON protocol impact: backward compatible (expected for patch release)
+- Validation:
+  - [ ] `npm run build`
+  - [ ] `npm test`
+  - [ ] `npm run cli -- validate agentdock.yml --json`
+  - [ ] `npm run cli -- upgrade agentdock.yml --dry-run --json`
+
 ## [0.1.0] - 2026-04-09
 
 ### Added
