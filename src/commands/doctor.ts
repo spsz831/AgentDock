@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { runDoctor } from '../core/doctor';
+import { runDoctor, doctorExitCode } from '../core/doctor';
 import { COMMAND_ERROR_CODES } from '../constants/command-error-codes';
 import type { CommandResult, ParsedCliOptions, DoctorReportData } from '../manifest/types';
 import { toJsonError, toJsonLine } from '../utils/command-json';
@@ -19,7 +19,7 @@ export async function runDoctorCommand(options: ParsedCliOptions = {}): Promise<
 
     if (options.json === true) {
       return {
-        exitCode: report.healthy ? 0 : 1,
+        exitCode: doctorExitCode(report),
         stdout: [toJsonLine('doctor', report.healthy, report, [])],
         stderr: [],
       };
@@ -28,20 +28,26 @@ export async function runDoctorCommand(options: ParsedCliOptions = {}): Promise<
     const lines = [
       `Doctor (${report.mode})${report.agent ? ` agent=${report.agent}` : ''}`,
       report.summary,
-      ...report.checks.map((check) => `  [${check.status.toUpperCase()}] ${check.label} — ${check.detail}`),
+      ...report.checks.flatMap((check) => {
+        const out2: string[] = [`  [${check.status.toUpperCase()}] ${check.label} — ${check.detail}`];
+        if (check.remediation && check.status !== 'pass') {
+          out2.push(`    → 建议: ${check.remediation}`);
+        }
+        return out2;
+      }),
       ...(report.reportPath ? [`report: ${report.reportPath}`] : []),
     ];
-    return { exitCode: report.healthy ? 0 : 1, stdout: lines, stderr: [] };
+    return { exitCode: doctorExitCode(report), stdout: lines, stderr: [] };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (options.json === true) {
       const data: DoctorReportData = { mode: 'live', agent, target: '', healthy: false, checks: [], summary: message };
       return {
-        exitCode: 1,
+        exitCode: 2,
         stdout: [toJsonLine('doctor', false, data, [toJsonError(COMMAND_ERROR_CODES.DOCTOR_FAILED, message)])],
         stderr: [],
       };
     }
-    return { exitCode: 1, stdout: [], stderr: [message] };
+    return { exitCode: 2, stdout: [], stderr: [message] };
   }
 }

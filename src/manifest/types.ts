@@ -145,6 +145,8 @@ export interface DoctorCheck {
   status: CheckStatus;
   detail: string;
   findings: DoctorFinding[];
+  /** Actionable remediation for warn/fail checks — tells the user what to DO, not just what's wrong. */
+  remediation?: string;
 }
 
 export interface DoctorReportData {

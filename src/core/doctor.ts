@@ -40,12 +40,28 @@ function aggregateStatus(statuses: CheckStatus[]): CheckStatus {
   return 'pass';
 }
 
-function makeCheck(id: string, label: string, findings: DoctorFinding[], passDetail: string): DoctorCheck {
+function makeCheck(id: string, label: string, findings: DoctorFinding[], passDetail: string, remediation?: string): DoctorCheck {
   const errors = findings.filter((f) => f.severity === 'error').length;
   const warns = findings.filter((f) => f.severity === 'warn').length;
   const status: CheckStatus = errors > 0 ? 'fail' : warns > 0 ? 'warn' : 'pass';
   const detail = status === 'pass' ? passDetail : `${errors} 错误 / ${warns} 警告`;
-  return { id, label, status, detail, findings };
+  const check: DoctorCheck = { id, label, status, detail, findings };
+  if (remediation && status !== 'pass') {
+    check.remediation = remediation;
+  }
+  return check;
+}
+
+/**
+ * Quantized exit code for the doctor command, so CI / automation can tell
+ * apart "clean", "degraded (warnings only)" and "hard failure":
+ *   pass → 0, warn → 1, fail → 2.
+ */
+export function doctorExitCode(report: DoctorReportData): number {
+  const worst = aggregateStatus(report.checks.map((c) => c.status));
+  if (worst === 'fail') return 2;
+  if (worst === 'warn') return 1;
+  return 0;
 }
 
 function finalize(mode: DoctorMode, agent: string | undefined, target: string, checks: DoctorCheck[]): DoctorReportData {
@@ -55,7 +71,7 @@ function finalize(mode: DoctorMode, agent: string | undefined, target: string, c
   const warnCount = checks.filter((c) => c.status === 'warn').length;
   const summary = healthy
     ? `环境健康：${checks.length} 项检查通过${warnCount ? `，${warnCount} 项警告` : ''}`
-    : `发现问题：${failCount} 项失败 / ${warnCount} 项警告，请检查上方详情`;
+    : `发现问题：${failCount} 项失败 / ${warnCount} 项警告，可参考各项【建议】处理`;
   return { mode, agent, target, healthy, checks, summary };
 }
 
@@ -147,6 +163,7 @@ async function doctorLiveClaude(root: string): Promise<DoctorCheck[]> {
       status: 'warn',
       detail: `未找到 ${claudeDir}，无可体检的 Claude 环境`,
       findings: [],
+      remediation: '确认 `--root` 指向正确的用户主目录（默认 os.homedir()），或先安装 Claude Code 生成配置后再体检。',
     });
     return checks;
   }
@@ -175,7 +192,13 @@ async function doctorLiveClaude(root: string): Promise<DoctorCheck[]> {
       }
     }
   }
-  checks.push(makeCheck('config-valid', '配置文件合法', parseFindings, 'Claude 配置文件均为合法 JSON'));
+  checks.push(makeCheck(
+    'config-valid',
+    '配置文件合法',
+    parseFindings,
+    'Claude 配置文件均为合法 JSON',
+    '修复配置文件语法后重试（见上方路径与报错）；也可运行 `agentdock validate` 精确定位问题行。',
+  ));
 
   // 2. 可迁移完整性（scan 会捕获的内容）
   const counts = {
@@ -194,6 +217,9 @@ async function doctorLiveClaude(root: string): Promise<DoctorCheck[]> {
     status: total > 0 ? 'pass' : 'warn',
     detail: `将捕获 MCP:${counts.mcp} Skill:${counts.skills} Agent:${counts.agents} Plugin:${counts.plugins} Hook:${counts.hooks} 记忆:${counts.memory} settings:${counts.settings}`,
     findings: scan.notes.map((note) => ({ severity: 'info' as const, message: note })),
+    remediation: total > 0
+      ? undefined
+      : '未捕获到可迁移内容。确认目标机已安装 Claude/Codex 且配置位于默认路径，或用 `--root` 指定正确的用户主目录后重新 `scan`。',
   });
 
   // 3. 敏感泄露风险
@@ -234,7 +260,13 @@ async function doctorLiveClaude(root: string): Promise<DoctorCheck[]> {
       }
     }
   }
-  checks.push(makeCheck('secret-leak', '敏感泄露风险', leakFindings, '导出时令牌会被隔离，不会随包泄露'));
+  checks.push(makeCheck(
+    'secret-leak',
+    '敏感泄露风险',
+    leakFindings,
+    '导出时令牌会被隔离，不会随包泄露',
+    '存在明文令牌的"原文复制"文件（skills/agents/memory/hooks/plugins）scan 不会自动打码。请将明文令牌替换为 `{{AGENTDOCK_<AGENT>_<KEY>}}` 占位符并移入 `.env`；若该文件不应随迁移携带，可在 `scan` 后手动剔除。切勿连同真实令牌一起打包分发。',
+  ));
 
   // 4. 运行态隔离
   const runState = await walkForRunState(claudeDir);
@@ -259,6 +291,7 @@ async function doctorLiveCodex(root: string): Promise<DoctorCheck[]> {
       status: 'warn',
       detail: `未找到 ${codexDir}，无可体检的 Codex 环境`,
       findings: [],
+      remediation: '确认 `--root` 指向正确的用户主目录（默认 os.homedir()），或先安装 Codex 生成配置后再体检。',
     });
     return checks;
   }
@@ -278,7 +311,13 @@ async function doctorLiveCodex(root: string): Promise<DoctorCheck[]> {
   } else {
     parseFindings.push({ severity: 'warn', message: '未找到 .codex/config.toml', path: configPath });
   }
-  checks.push(makeCheck('config-valid', '配置文件合法', parseFindings, 'Codex config.toml 为合法 TOML'));
+  checks.push(makeCheck(
+    'config-valid',
+    '配置文件合法',
+    parseFindings,
+    'Codex config.toml 为合法 TOML',
+    '修复 config.toml 语法后重试（见上方路径与报错）；也可运行 `agentdock validate` 精确定位问题行。',
+  ));
 
   // 2. 可迁移完整性
   let mcpCount = 0;
@@ -307,6 +346,9 @@ async function doctorLiveCodex(root: string): Promise<DoctorCheck[]> {
     status: total > 0 ? 'pass' : 'warn',
     detail: `将捕获 MCP:${counts.mcp} 记忆:${counts.memory} settings:${counts.settings}`,
     findings: scan.notes.map((note) => ({ severity: 'info' as const, message: note })),
+    remediation: total > 0
+      ? undefined
+      : '未捕获到可迁移内容。确认目标机已安装 Codex 且配置位于默认路径，或用 `--root` 指定正确的用户主目录后重新 `scan`。',
   });
 
   // 3. 敏感泄露风险
@@ -344,7 +386,13 @@ async function doctorLiveCodex(root: string): Promise<DoctorCheck[]> {
       // ignore
     }
   }
-  checks.push(makeCheck('secret-leak', '敏感泄露风险', leakFindings, '导出时令牌会被隔离，不会随包泄露'));
+  checks.push(makeCheck(
+    'secret-leak',
+    '敏感泄露风险',
+    leakFindings,
+    '导出时令牌会被隔离，不会随包泄露',
+    '存在明文令牌的"原文复制"文件（skills/agents/memory/hooks/plugins）scan 不会自动打码。请将明文令牌替换为 `{{AGENTDOCK_<AGENT>_<KEY>}}` 占位符并移入 `.env`；若该文件不应随迁移携带，可在 `scan` 后手动剔除。切勿连同真实令牌一起打包分发。',
+  ));
 
   // 4. 运行态隔离
   const runState = await walkForRunState(codexDir);
@@ -381,6 +429,7 @@ async function doctorScan(options: DoctorOptions): Promise<DoctorReportData> {
       status: 'fail',
       detail: `未找到 ${scanPath}`,
       findings: [],
+      remediation: '确认 `--from-scan` 指向正确的 `agentdock.scan.yml` 路径；若尚未扫描，先运行 `agentdock scan --agent all --out <目录>`。',
     });
     return finalize('scan', options.agent, scanPath, checks);
   }
@@ -400,7 +449,13 @@ async function doctorScan(options: DoctorOptions): Promise<DoctorReportData> {
       }
     }
   }
-  checks.push(makeCheck('ref-integrity', '引用完整性', missing, '所有记录的源文件仍存在，可完整还原'));
+  checks.push(makeCheck(
+    'ref-integrity',
+    '引用完整性',
+    missing,
+    '所有记录的源文件仍存在，可完整还原',
+    '部分源文件已不存在，`install` 时将跳过这些条目导致还原不完整。请重新运行 `agentdock scan` 刷新 manifest，或确认这些路径在目标机上仍可用。',
+  ));
 
   // 2. 产物泄露扫描
   const leaks = await walkForLeaks(dir);
@@ -409,7 +464,13 @@ async function doctorScan(options: DoctorOptions): Promise<DoctorReportData> {
     message: `发现 ${leak.leaks.length} 处疑似真实令牌`,
     path: leak.file,
   }));
-  checks.push(makeCheck('artifact-leak', '产物无泄露', leakFindings, '扫描产物中未发现真实令牌'));
+  checks.push(makeCheck(
+    'artifact-leak',
+    '产物无泄露',
+    leakFindings,
+    '扫描产物中未发现真实令牌',
+    '扫描产物含真实令牌，切勿提交或分发。重新运行 `scan`（确保敏感文件未被 verbatim 复制），或使用 `export --from-scan <scan> --env <你的.env>` 以占位符打包、真实值留在本机 `.env`。',
+  ));
 
   // 3. 运行态未入产物
   const runState = await walkForRunState(dir);
@@ -418,16 +479,23 @@ async function doctorScan(options: DoctorOptions): Promise<DoctorReportData> {
     message: '运行态文件出现在产物中（绝不应导出）',
     path: p,
   }));
-  checks.push(makeCheck('artifact-runstate', '产物无运行态', runStateFindings, '产物中不含运行态文件'));
+  checks.push(makeCheck(
+    'artifact-runstate',
+    '产物无运行态',
+    runStateFindings,
+    '产物中不含运行态文件',
+    '运行态文件（auth.json / cache / sessions 等）绝不应出现在产物中，否则会携带凭据或臃肿数据。检查 `scan` 是否误将其纳入，删除后重新 `export`。',
+  ));
 
   // 4. 占位符一致性：隔离的机密数量应与 .env.example 中定义的占位符数量一致
   // 注意：测试 harness 下字符串比较（includes / Set.has / 属性访问）对这类
   // 大写占位符字符串存在已知异常，故此处只比较"数量"（数值比较安全且确定）
   const envPath = path.join(dir, '.env.example');
+  const hasEnv = await fileExists(envPath);
   const consistencyFindings: DoctorFinding[] = [];
-  if (await fileExists(envPath)) {
+  let definedCount = 0;
+  if (hasEnv) {
     const envText = await fs.readFile(envPath, 'utf8');
-    let definedCount = 0;
     for (const raw of envText.split(/\r?\n/)) {
       const line = raw.trim();
       if (!line || line.startsWith('#')) {
@@ -447,7 +515,19 @@ async function doctorScan(options: DoctorOptions): Promise<DoctorReportData> {
   } else if (manifest.secrets.length > 0) {
     consistencyFindings.push({ severity: 'warn', message: '存在隔离机密但缺少 .env.example' });
   }
-  checks.push(makeCheck('placeholder-consistency', '占位符一致', consistencyFindings, '所有隔离机密均有对应 .env.example 占位'));
+  const placeholderRemediation =
+    manifest.secrets.length > 0 && definedCount < manifest.secrets.length
+      ? `隔离了 ${manifest.secrets.length} 个机密但 \`.env.example\` 只定义了 ${definedCount} 个占位符。补齐缺失的 \`AGENTDOCK_*\` 变量名（与 manifest.secrets 中的 key 一致），确保 \`install\`/回注后真实值能正确落位。`
+      : (manifest.secrets.length > 0 && !hasEnv
+        ? '存在隔离机密但缺少 `.env.example`。运行 `scan` 会一并生成 `.env.example`；若为手动构造产物，请补一个列出所有 `AGENTDOCK_*` 占位符的 `.env.example`。'
+        : undefined);
+  checks.push(makeCheck(
+    'placeholder-consistency',
+    '占位符一致',
+    consistencyFindings,
+    '所有隔离机密均有对应 .env.example 占位',
+    placeholderRemediation,
+  ));
 
   return finalize('scan', options.agent, scanPath, checks);
 }
@@ -463,6 +543,7 @@ async function doctorPackage(options: DoctorOptions): Promise<DoctorReportData> 
       status: 'fail',
       detail: `未找到 ${pkgDir}`,
       findings: [],
+      remediation: '确认 `--package` 指向正确的安装包目录（即 `export` 产出的目录）。',
     });
     return finalize('package', options.agent, pkgDir, checks);
   }
@@ -476,7 +557,13 @@ async function doctorPackage(options: DoctorOptions): Promise<DoctorReportData> 
     message: `发现 ${leak.leaks.length} 处疑似真实令牌`,
     path: leak.file,
   }));
-  checks.push(makeCheck('pkg-leak', '安装包无泄露', leakFindings, '安装包中未发现真实令牌'));
+  checks.push(makeCheck(
+    'pkg-leak',
+    '安装包无泄露',
+    leakFindings,
+    '安装包中未发现真实令牌',
+    '安装包含真实令牌，切勿分发或在目标机直接 `install`。重新运行 `scan`（确保敏感文件未被 verbatim 复制），或使用 `export --from-scan <scan> --env <你的.env>` 以占位符打包。',
+  ));
 
   const runState = await walkForRunState(scanDir);
   const runStateFindings: DoctorFinding[] = runState.map((p) => ({
@@ -484,7 +571,13 @@ async function doctorPackage(options: DoctorOptions): Promise<DoctorReportData> 
     message: '运行态文件出现在安装包中',
     path: p,
   }));
-  checks.push(makeCheck('pkg-runstate', '安装包无运行态', runStateFindings, '安装包中不含运行态文件'));
+  checks.push(makeCheck(
+    'pkg-runstate',
+    '安装包无运行态',
+    runStateFindings,
+    '安装包中不含运行态文件',
+    '运行态文件（auth.json / cache / sessions 等）不应出现在安装包中。检查 `scan` 是否误将其纳入，删除后重新 `export`。',
+  ));
 
   return finalize('package', options.agent, pkgDir, checks);
 }
@@ -508,6 +601,9 @@ function renderDoctorReport(report: DoctorReportData): string {
     for (const finding of check.findings) {
       const mark = finding.severity === 'error' ? 'X' : finding.severity === 'warn' ? '!' : 'i';
       lines.push(`  - [${mark}] ${finding.message}${finding.path ? ` (\`${finding.path}\`)` : ''}`);
+    }
+    if (check.remediation) {
+      lines.push(`- **建议**: ${check.remediation}`);
     }
     lines.push('');
   }

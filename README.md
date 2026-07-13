@@ -129,7 +129,9 @@ restore/
 | `export` | 把扫描产物打包成可迁移包（默认打码，`--env` 回注） | `agentdock export --from-scan ./out/agentdock.scan.yml --out ./pkg` |
 | `install` | 从包安全还原到目标机（越界校验 / 锁 / 原子写 / 幂等） | `agentdock install ./pkg ~` |
 | `validate` | 校验 manifest 合法性 | `agentdock validate ./pkg/manifest.resolved.json` |
-| `doctor` | 体检环境 / 包：配置健康度、可迁移性、是否泄密 | `agentdock doctor --agent all --root ~` |
+| `doctor` | 体检环境 / 包：配置健康度、可迁移性、是否泄密（每项附**修复建议**） | `agentdock doctor --agent all --root ~` |
+
+`doctor` 退出码已量化，便于 CI / 自动化区分严重度：**0** = 全通过、**1** = 仅有警告（可迁移但有隐患）、**2** = 存在失败（需处理）。加 `--json` 可机读，remediation 字段随报告一同返回。
 | `list` | 列出已捕获的 MCP / Skill / Agent 等定义清单 | `agentdock list --package ./pkg` |
 
 支持的双助手：**Claude Code**（JSON：`settings.json` + `.claude.json`）与 **Codex**（TOML：`config.toml` + `AGENTS.md`）。
