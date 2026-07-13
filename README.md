@@ -64,6 +64,63 @@ agentdock list --package ./pkg
 
 `scan` 永不读取 `auth.json` / `logs.sqlite` 等运行态文件；真实 token 值不会写入任何产物。`doctor --package` 会二次校验包内无真实令牌泄露。
 
+## 真实示例：一次迁移到底发生了什么
+
+下面是用 AgentDock 迁移**一台真实 Windows 机器**的记录（Claude Code + Codex 双助手环境），数字均为实测：
+
+**第 1 步 · `scan` 捕获了什么**
+
+| 助手 | 类型 | 数量 |
+|---|---|---|
+| Claude Code | MCP Server | 9 |
+| | Skill | 95 |
+| | Agent | 4 |
+| | Plugin | 2 |
+| | Hook | 5 |
+| | 记忆文件 / `settings.json` | 1 / 1 |
+| Codex | `config.toml` / `AGENTS.md` | 1 / 1 |
+| | MCP（含在 `config.toml` 内）| 9 |
+
+同时自动隔离出 **7 个密钥**；运行态文件（`.codex/auth.json`、`cache`、`sessions`）被强制跳过，连读都不读。
+
+**第 2 步 · 密钥是怎么被保护的（真实片段）**
+
+扫描前 `.claude.json` 里长这样（真实 token 已打码显示）：
+
+```json
+"jimeng": {
+  "env": { "JIMENG_API_KEY": "cded****77b2" }
+}
+```
+
+`export` 打包后，落盘的只有占位符 —— **真实值从未写入任何产物**：
+
+```json
+"jimeng": {
+  "env": { "JIMENG_API_KEY": "{{AGENTDOCK_CLAUDE_JIMENG_API_KEY}}" }
+}
+```
+
+原值进了 `.env.example`，等你在新机填好 `.env` 后，再 `export --from-scan <scan> --env <你的.env>` 回注即可。
+
+**第 3 步 · `install` 还原出了什么**
+
+```
+restore/
+├── .claude/
+│   ├── skills/       (95 个，原样还原)
+│   ├── agents/       (4 个)
+│   ├── plugins/      (2 个)
+│   └── settings.json
+├── .claude.json      (9 个 MCP 合并写入，token 为占位符)
+└── .codex/
+    └── config.toml
+```
+
+7 个密钥在还原产物里全部以 `{{占位符}}` 形式存在，**真实值 0 落盘**。
+
+> 一句话：你的整套环境（9 MCP / 95 Skill / 4 Agent / 2 Plugin / 5 Hook + Codex 配置）完整搬到了新目录，而 7 把钥匙始终攥在你自己手里的 `.env` 中。
+
 ## 命令速查
 
 | 命令 | 作用 | 典型用法 |
