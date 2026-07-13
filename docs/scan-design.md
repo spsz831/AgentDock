@@ -102,15 +102,15 @@ secrets:                 # 隔离出的占位清单 → 写入 .env.example
     source: .claude.json#mcpServers.github.env.GITHUB_TOKEN
 ```
 
-引擎层（export/install/validate/upgrade）**不改造**，直接消费 `agents.*` 下的条目作为广义 source。
-v3 → v2 的向后兼容由 `upgrade` 负责（领域条目拍平回 sources）。
+引擎层（export/install/validate）**不改造**，直接消费 `agents.*` 下的条目作为广义 source。
+v3 → v2 的拍平由 `export --from-scan` 桥接负责（领域条目拍平回 sources，生成 `install` 可消费的 v2 包）。
 
 ## 7. 与引擎层的关系
 
 ```
-scan ──产出──> manifest v3 ──> export ──> install
+scan ──产出──> manifest v3 ──> export --from-scan ──> install
                          ↑
-                    validate / upgrade (向后兼容 v2)
+                    validate (校验)
 ```
 
 两层解耦：scan 是"生成器"，引擎是"搬运工"。一份安全加固（P0 穿越 / 锁 / 原子写）两层受益。

@@ -1,11 +1,9 @@
 #!/usr/bin/env node
 import { runExportCommand } from './commands/export';
-import { runInitCommand } from './commands/init';
 import { runInstallCommand } from './commands/install';
 import { runScanCommand } from './commands/scan';
 import { runDoctorCommand } from './commands/doctor';
 import { runListCommand } from './commands/list';
-import { runUpgradeCommand } from './commands/upgrade';
 import { runValidateCommand } from './commands/validate';
 import type { CommandResult, ParsedCliOptions } from './manifest/types';
 
@@ -88,12 +86,8 @@ export async function runCli(args: string[]): Promise<CommandResult> {
       return runValidateCommand(positionals[0], options);
     case 'export':
       return runExportCommand(positionals[0], options);
-    case 'init':
-      return runInitCommand(positionals[0], options);
     case 'install':
       return runInstallCommand(positionals[0], positionals[1], options);
-    case 'upgrade':
-      return runUpgradeCommand(positionals[0], options);
     case 'scan':
       return runScanCommand(options);
     case 'doctor':
@@ -104,7 +98,7 @@ export async function runCli(args: string[]): Promise<CommandResult> {
       return {
         exitCode: 1,
         stdout: [],
-        stderr: ['Usage: agentdock <init|validate|export|install|upgrade|scan|doctor|list> [path]'],
+        stderr: ['Usage: agentdock <scan|export|install|validate|doctor|list> [path]'],
       };
   }
 }

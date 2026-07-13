@@ -5,7 +5,6 @@
 - `version` 表示 manifest schema version
 - 当前版本为 `2`
 - `version: 1` 仍可被读取与校验，用于兼容旧清单
-- `upgrade` 命令可将 v1 自动升级到 v2
 
 ## 顶层字段
 
@@ -81,34 +80,7 @@
 - `outputs.type` 只能是 `directory`
 - `install.mode` 若存在，只能是 `package` 或 `direct`
 
-## upgrade
-
-```bash
-agentdock upgrade agentdock.yml
-agentdock upgrade agentdock.yml --dry-run
-agentdock upgrade agentdock.yml --dry-run --verbose
-agentdock upgrade agentdock.yml --dry-run --json
-agentdock upgrade agentdock.yml --write ./agentdock.v2.yml
-agentdock upgrade agentdock.yml --backup
-agentdock upgrade agentdock.yml --force --dry-run
-```
-
-当前支持：
-- v1 -> v2
-- 自动补充 `sources[*].destination`
-- `--dry-run` 预览 diff，不写回清单
-- 文本模式默认输出稳定摘要；`--verbose` 时附加完整 diff
-- `--json` 输出机器可读结果；与 `--dry-run` 组合时包含 `diff` 与 `summary`
-- JSON 顶层包含协议版本字段：`schemaVersion`（当前固定为 `1`）
-- JSON 顶层包含审计字段：`generatedAt`（ISO 时间戳）、`toolVersion`（当前 CLI 版本）
-- `summary` 当前字段：`addedDestinationCount`、`changedLineCount`、`sourceCount`、`templateCount`、`warningCount`、`warnings`
-- `warnings` 结构：`[{ code, message }]`
-- 当前稳定 `warning code`：`FORMAT_ONLY_CHANGE`
-- `--write <path>` 写出升级后的新清单文件，不改原文件
-- `--backup` 原位升级前生成备份文件：`<manifest>.bak.<timestamp>`
-- `--force` 即使清单已是 v2，也按当前规则重新处理并输出差异
-
-## JSON 协议（init / validate / export / install / upgrade）
+## JSON 协议（validate / export / install）
 
 - 当前稳定协议版本：`schemaVersion: 1`
 - 公共顶层字段：
@@ -120,15 +92,12 @@ agentdock upgrade agentdock.yml --force --dry-run
   - `success`：是否成功
   - `data`：命令结果数据
   - `errors`：结构化错误列表 `[{ code, message }]`
-- `upgrade` 的专用升级字段（`manifestPath/fromVersion/toVersion/changed/dryRun/diff/summary`）统一放在 `data`
 
 ### 错误码
 
 - `MISSING_ARGUMENT`
 - `MANIFEST_NOT_FOUND`
 - `MANIFEST_INVALID`
-- `MANIFEST_ALREADY_EXISTS`
-- `UNSUPPORTED_MANIFEST_VERSION`
 - `TEMPLATE_VARIABLE_MISSING`
 - `MISSING_PACKAGE_MANIFEST`
 - `MISSING_INSTALL_PLAN`

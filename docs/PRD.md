@@ -62,7 +62,7 @@ AgentDock 要成为这个细分赛道的**默认工具**：领域感知、安全
 ## 4. 核心场景（Use Cases）
 
 1. **换新机 / 重装**：`scan --agent all` → 把产物提交到 Git/云盘 → 新机 `install` 还原 → 填 `.env` → 环境 1:1 回来了。
-2. **团队环境标准化**：Lead `scan` 出团队基线包，成员 `install` 即获得统一 MCP/Skill；升级时 `upgrade` 拍平兼容。
+2. **团队环境标准化**：Lead `scan` 出团队基线包，成员 `install` 即获得统一 MCP/Skill。
 3. **CI 注入**：`.github/workflows` 里 `install` 环境包 + `secrets` 注入 `.env`，沙箱获得与本地一致的 AI 助手配置。
 4. **安全审计/体检**：`doctor` 回答"我的配置健康吗？迁得了吗？有没有 token 泄露？"——用户一跑就有反馈。
 5. **跨 AI 助手**：同一份 Skill/Agent，从 Claude 迁移描述、Codex 侧 `scan --agent codex` 各取所需。
@@ -110,7 +110,7 @@ AgentDock            ✓                ✓(三层)           ✓(强制)       
 > 这是历史上"定位与实现偏差"的根源。本 PRD 明确划界，任何超出以下范围的提案须回到本文复议。
 
 **明确做（In-scope）**
-- 领域感知的 `scan` / `export` / `install` / `doctor` / `list` / `validate` / `upgrade`。
+- 领域感知的 `scan` / `export` / `install` / `doctor` / `list` / `validate`。
 - 敏感信息三层隔离（识别 → 替换 → 告警），`.env.example` 生成。
 - 运行态文件强制跳过（安全红线）。
 - 跨机/跨版本迁移与还原闭环。
@@ -129,14 +129,12 @@ AgentDock            ✓                ✓(三层)           ✓(强制)       
 
 | 命令 | 层 | 定位 | 状态 |
 |---|---|---|---|
-| `scan` | 领域 | 发现+提取+分类+产出 v3 manifest + `.env.example` + 报告 | ✅ Claude 已闭环；Codex 待做 |
+| `scan` | 领域 | 发现+提取+分类+产出 v3 manifest + `.env.example` + 报告 | ✅ Claude / Codex 双闭环 |
 | `export --from-scan` | 桥接 | 把 v3 扫描产物打包成 `install` 可消费的稳定包（默认打码，`--env` 回注） | ✅ 已实现 |
 | `install` | 引擎 | 从包安全还原到目标目录（越界校验/锁/原子写/幂等） | ✅ 已加固 |
-| `doctor` | 领域 | 环境体检：配置健康度、可迁移性、是否泄密 | ⬜ 未实现（高优先级） |
-| `list` | 领域 | 列出已捕获的 MCP/Skill/Agent 等 | ⬜ 未实现 |
+| `doctor` | 领域 | 环境体检：配置健康度、可迁移性、是否泄密 | ✅ 已实现 |
+| `list` | 领域 | 列出已捕获的 MCP/Skill/Agent 等 | ✅ 已实现 |
 | `validate` | 引擎 | 校验 manifest 合法性 | ✅ |
-| `upgrade` | 引擎 | v1→v2 升级、v3→v2 兼容拍平 | ✅（v3→v2 待补） |
-| `init` | 引擎 | 初始化清单 | ✅ |
 
 ---
 
@@ -153,7 +151,7 @@ AgentDock            ✓                ✓(三层)           ✓(强制)       
                                                      ▼
 ┌──────────────────────────────────────────────────────────────┐
 │  引擎层 (Engine)           安全搬运工（与领域无关）             │
-│   export (通用)  install  validate  upgrade                    │
+│   export  install  validate                                  │
 │   防御：safeResolveWithin / 锁 / tmp+rename 原子写 / 幂等       │
 └──────────────────────────────────────────────────────────────┘
                          ▼
@@ -163,7 +161,7 @@ AgentDock            ✓                ✓(三层)           ✓(强制)       
 数据流闭环：
 ```
 scan → manifest v3 → export --from-scan → 稳定包 → install → 目标机
-   ↑________ validate / upgrade（向后兼容）________│
+   ↑________ validate（校验）________│
 ```
 
 ---
@@ -186,11 +184,11 @@ scan → manifest v3 → export --from-scan → 稳定包 → install → 目标
 
 | 版本 | 主题 | 范围 | 状态 |
 |---|---|---|---|
-| **v0.1.2** | 通用打包器（历史） | init/validate/export/install/upgrade | ✅ 已发布（已成过去式，仅兼容保留） |
+| **v0.1.2** | 通用打包器（历史） | init/validate/export/install/upgrade | ✅ 已发布（已成过去式，已被 v0.4 精简移除） |
 | **v0.2** | 引擎加固 + Claude 扫描闭环 | P0 路径穿越修复/锁/原子写/幂等；`scan --agent claude`；`export --from-scan` 打通 scan→install 闭环 | ✅ 已完成（截至 2026-07-12，48 测全绿） |
 | **v0.3** | 覆盖 + 感知 | `doctor` ✅；`scan --agent codex` ✅（TOML 解析 `config.toml`、隔离 `AGENTDOCK_CODEX_*` 占位、强制跳过 `auth.json`/`logs.sqlite`、scan→export→install 闭环打通）；`list` ✅（纯展示清单，v3 直接复用） | ✅ 已完成（截至 2026-07-12，65 测全绿） |
 | **v0.4** | 分发 + 跨机 | `npm publish`（shebang / `tsc` 出 `dist/` / 确认 `bin` / 安装文档）；跨机路径重写（绝对 home → 相对占位） | ⬜ |
-| **v0.5+（远景）** | 团队化 | 团队基线包、CI 集成范例、模板市场（可选）、`upgrade` v3→v2 拍平收尾 | 🔭 规划中 |
+| **v0.5+（远景）** | 团队化 | 团队基线包、CI 集成范例、模板市场（可选） | 🔭 规划中 |
 
 **排期原则**（按用户价值排序，非按技术依赖）：
 1. `doctor`（最高即时感知，一跑即有反馈）→ 并行推进 `npm publish`（装得上才算产品）。

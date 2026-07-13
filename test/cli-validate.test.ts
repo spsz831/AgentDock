@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, beforeAll } from 'vitest';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -6,7 +6,26 @@ import { runCli } from '../src/cli';
 import { COMMAND_ERROR_CODES } from '../src/constants/command-error-codes';
 import type { CommandJsonReport } from '../src/types/command-report';
 
-const manifestPath = path.resolve(__dirname, '../agentdock.yml');
+const VALID_MANIFEST = `version: 2
+project:
+  name: agentdock-demo
+sources:
+  - id: settings
+    type: file
+    path: ./settings.json
+    destination: ./restored/settings.json
+outputs:
+  type: directory
+  path: ./dist/exported
+`;
+
+let manifestPath: string;
+
+beforeAll(async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'agentdock-validate-'));
+  manifestPath = path.join(dir, 'agentdock.yml');
+  await fs.writeFile(manifestPath, VALID_MANIFEST, 'utf8');
+});
 
 describe('cli validate command', () => {
   it('returns success for a valid manifest', async () => {

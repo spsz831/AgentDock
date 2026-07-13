@@ -1,13 +1,59 @@
 import { describe, expect, it } from 'vitest';
+import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { loadManifest } from '../src/manifest/load';
 import { validateManifest } from '../src/manifest/validate';
 
-const fixturePath = path.resolve(__dirname, '../examples/agentdock.example.yml');
+const SAMPLE_MANIFEST = `version: 2
+project:
+  name: agentdock-demo
+  description: Minimal demo manifest
+sources:
+  - id: workspace
+    type: directory
+    path: ./workspace
+    destination: ./restored/workspace
+    include:
+      - '**/*.json'
+      - '**/*.txt'
+    exclude:
+      - '**/*.bak'
+  - id: settings
+    type: file
+    path: ./workspace/settings.json
+    destination: ./restored/config/settings.json
+templates:
+  - id: env-template
+    source: ./templates/.env.example
+    destination: ./restored/.env
+    variables:
+      APP_NAME: agentdock-demo
+      MODE: production
+outputs:
+  type: directory
+  path: ./dist/exported
+install:
+  mode: package
+  targetPath: ./dist/restored
+  overwrite: false
+options:
+  includeHidden: true
+  followSymlinks: true
+  overwrite: false
+`;
+
+async function writeSampleManifest(): Promise<string> {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'agentdock-manifest-'));
+  const manifestPath = path.join(dir, 'agentdock.yml');
+  await fs.writeFile(manifestPath, SAMPLE_MANIFEST, 'utf8');
+  return manifestPath;
+}
 
 describe('manifest loading and validation', () => {
   it('parses a valid manifest with v2 destination fields', async () => {
-    const manifest = await loadManifest(fixturePath);
+    const manifestPath = await writeSampleManifest();
+    const manifest = await loadManifest(manifestPath);
     const result = validateManifest(manifest.data);
 
     expect(result.valid).toBe(true);
