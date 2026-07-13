@@ -1,6 +1,6 @@
 {
   "name": "agentdock-cli",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Migrate, back up, and version your AI coding assistant environment (Claude Code / Codex) — MCP servers, Skills, Agents, Plugins, Hooks, and memory — as a portable, secret-isolated package.",
   "keywords": [
     "claude-code",

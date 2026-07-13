@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.2] - 2026-07-13
+
+### Docs
+- README rewritten for end-users: value proposition, 30s quickstart (using the installed `agentdock` command, not dev mode), a full old-machine → new-machine example, command cheat-sheet, and a concise security promise.
+- New **Real example** section in README using the actual Windows verification run data (9 MCP / 95 Skill / 4 Agent / 2 Plugin / 5 Hook + Codex config, 7 secrets isolated, real masked-token before/after snippet, restored file tree).
+- PRD: v0.4 marked done.
+
+> Docs-only release — no code changes. Bumps the published npm README in sync with the repository.
+
 ## [0.4.1] - 2026-07-13
 
 ### Removed
