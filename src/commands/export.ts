@@ -1,4 +1,6 @@
+import path from 'node:path';
 import { exportManifest } from '../core/exporter';
+import { exportFromScan } from '../core/scan-export';
 import { COMMAND_ERROR_CODES } from '../constants/command-error-codes';
 import type { CommandErrorCode } from '../constants/command-error-codes';
 import { loadManifest } from '../manifest/load';
@@ -8,6 +10,47 @@ import { toJsonError, toJsonLine } from '../utils/command-json';
 import type { CommandResult } from './validate';
 
 export async function runExportCommand(manifestPath?: string, options: ParsedCliOptions = {}): Promise<CommandResult> {
+  // `scan` → package bridge: build an installable package from a v3 scan manifest.
+  if (options.fromScan) {
+    const out = options.out
+      ? path.resolve(options.out)
+      : path.resolve(path.join(path.dirname(path.resolve(options.fromScan)), 'package'));
+    try {
+      const exportResult = await exportFromScan({
+        scanManifestPath: options.fromScan,
+        out,
+        env: options.env ? path.resolve(options.env) : undefined,
+        overwrite: options.overwrite,
+      });
+
+      if (options.json === true) {
+        return {
+          exitCode: 0,
+          stdout: [toJsonLine(
+            'export',
+            true,
+            {
+              manifestPath: path.resolve(options.fromScan),
+              outputPath: exportResult.outputPath,
+              snapshotPath: exportResult.snapshotPath,
+              installPlanPath: exportResult.installPlanPath,
+            },
+            [],
+          )],
+          stderr: [],
+        };
+      }
+
+      return {
+        exitCode: 0,
+        stdout: [`Export (from scan) completed: ${exportResult.outputPath}`],
+        stderr: [],
+      };
+    } catch (error) {
+      return scanExportError(error, options, path.resolve(options.fromScan));
+    }
+  }
+
   const effectiveManifestPath = manifestPath ?? 'agentdock.yml';
 
   try {
@@ -70,6 +113,9 @@ export async function runExportCommand(manifestPath?: string, options: ParsedCli
       if (message.includes('Missing template variable(s)')) {
         code = COMMAND_ERROR_CODES.TEMPLATE_VARIABLE_MISSING;
       }
+      if (message.includes('LOCK_TIMEOUT')) {
+        code = COMMAND_ERROR_CODES.LOCK_TIMEOUT;
+      }
 
       return {
         exitCode: 1,
@@ -89,4 +135,27 @@ export async function runExportCommand(manifestPath?: string, options: ParsedCli
       stderr: [message],
     };
   }
+}
+
+function scanExportError(error: unknown, options: ParsedCliOptions, manifestPath: string): CommandResult {
+  const message = error instanceof Error ? error.message : String(error);
+  if (options.json === true) {
+    let code: CommandErrorCode = COMMAND_ERROR_CODES.UNKNOWN_ERROR;
+    if (message.includes('SCAN_EXPORT_UNSUPPORTED')) {
+      code = COMMAND_ERROR_CODES.MANIFEST_INVALID;
+    }
+    if (message.includes('LOCK_TIMEOUT')) {
+      code = COMMAND_ERROR_CODES.LOCK_TIMEOUT;
+    }
+    return {
+      exitCode: 1,
+      stdout: [toJsonLine('export', false, { manifestPath }, [toJsonError(code, message)])],
+      stderr: [],
+    };
+  }
+  return {
+    exitCode: 1,
+    stdout: [],
+    stderr: [message],
+  };
 }

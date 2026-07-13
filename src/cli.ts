@@ -1,6 +1,10 @@
+#!/usr/bin/env node
 import { runExportCommand } from './commands/export';
 import { runInitCommand } from './commands/init';
 import { runInstallCommand } from './commands/install';
+import { runScanCommand } from './commands/scan';
+import { runDoctorCommand } from './commands/doctor';
+import { runListCommand } from './commands/list';
 import { runUpgradeCommand } from './commands/upgrade';
 import { runValidateCommand } from './commands/validate';
 import type { CommandResult, ParsedCliOptions } from './manifest/types';
@@ -45,6 +49,30 @@ function parseCliOptions(args: string[]): { positionals: string[]; options: Pars
       }
       continue;
     }
+    if (arg === '--agent' || arg === '--root' || arg === '--out') {
+      const nextArg = args[index + 1];
+      if (nextArg && !nextArg.startsWith('--')) {
+        if (arg === '--agent') options.agent = nextArg as ParsedCliOptions['agent'];
+        if (arg === '--root') options.root = nextArg;
+        if (arg === '--out') options.out = nextArg;
+        index += 1;
+      } else {
+        positionals.push(arg);
+      }
+      continue;
+    }
+    if (arg === '--from-scan' || arg === '--env' || arg === '--package') {
+      const nextArg = args[index + 1];
+      if (nextArg && !nextArg.startsWith('--')) {
+        if (arg === '--from-scan') options.fromScan = nextArg;
+        if (arg === '--env') options.env = nextArg;
+        if (arg === '--package') options.package = nextArg;
+        index += 1;
+      } else {
+        positionals.push(arg);
+      }
+      continue;
+    }
     positionals.push(arg);
   }
 
@@ -66,11 +94,17 @@ export async function runCli(args: string[]): Promise<CommandResult> {
       return runInstallCommand(positionals[0], positionals[1], options);
     case 'upgrade':
       return runUpgradeCommand(positionals[0], options);
+    case 'scan':
+      return runScanCommand(options);
+    case 'doctor':
+      return runDoctorCommand(options);
+    case 'list':
+      return runListCommand(options);
     default:
       return {
         exitCode: 1,
         stdout: [],
-        stderr: ['Usage: agentdock <init|validate|export|install|upgrade> [path]'],
+        stderr: ['Usage: agentdock <init|validate|export|install|upgrade|scan|doctor|list> [path]'],
       };
   }
 }

@@ -1,22 +1,44 @@
 {
-  "name": "agentdock",
-  "version": "0.1.2",
-  "private": true,
+  "name": "agentdock-cli",
+  "version": "0.4.0",
+  "description": "Migrate, back up, and version your AI coding assistant environment (Claude Code / Codex) — MCP servers, Skills, Agents, Plugins, Hooks, and memory — as a portable, secret-isolated package.",
+  "keywords": [
+    "claude-code",
+    "codex",
+    "ai-coding-assistant",
+    "dotfiles",
+    "environment-migration",
+    "backup",
+    "versioning",
+    "mcp",
+    "skills",
+    "cli"
+  ],
   "type": "commonjs",
   "bin": {
     "agentdock": "dist/src/cli.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json && node -e \"require('fs').copyFileSync('package.json','dist/package.json')\"",
     "dev": "tsx src/cli.ts",
     "test": "vitest run",
     "cli": "tsx src/cli.ts",
+    "prepublishOnly": "npm run build",
     "release:commits": "node scripts/generate-commit-groups.js"
   },
   "dependencies": {
     "ajv": "^8.17.1",
     "diff": "^8.0.4",
     "minimatch": "^10.2.5",
+    "smol-toml": "^1.7.0",
     "yaml": "^2.8.1"
   },
   "devDependencies": {
@@ -24,5 +46,15 @@
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
+  },
+  "author": "spsz831",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/spsz831/AgentDock.git"
+  },
+  "homepage": "https://github.com/spsz831/AgentDock#readme",
+  "bugs": {
+    "url": "https://github.com/spsz831/AgentDock/issues"
   }
 }

@@ -10,6 +10,7 @@ import {
 import { resolveSourceDestination } from '../core/source-destination';
 import type { AgentDockManifest, CommandResult, ParsedCliOptions } from '../manifest/types';
 import type { UpgradeCommandData, UpgradeWarning } from '../types/upgrade-report';
+import { writeTextFile } from '../utils/fs';
 import { toJsonError, toJsonLine } from '../utils/command-json';
 
 function renderDiff(beforeText: string, afterText: string): string[] {
@@ -261,7 +262,7 @@ export async function runUpgradeCommand(manifestPath?: string, options: ParsedCl
       await fs.copyFile(absolutePath, backupPath);
     }
     await fs.mkdir(path.dirname(outputPath), { recursive: true });
-    await fs.writeFile(outputPath, output, 'utf8');
+    await writeTextFile(outputPath, output);
 
     const data = toUpgradeData(
       absolutePath,

@@ -206,4 +206,26 @@ describe('cli export command', () => {
       fs.access(path.join(tempRoot, 'dist', 'out', 'payload', 'sources', 'workspace', 'skills-link', 'from-link.txt')),
     ).rejects.toBeTruthy();
   });
+
+  it('serializes concurrent exports to the same output via a lock', async () => {
+    const { tempRoot, manifestPath } = await createTempManifest();
+
+    const [first, second] = await Promise.all([
+      runCli(['export', manifestPath]),
+      runCli(['export', manifestPath]),
+    ]);
+
+    expect(first.exitCode).toBe(0);
+    expect(second.exitCode).toBe(0);
+
+    const outputRoot = path.join(tempRoot, 'dist', 'out');
+    const files = await fs.readdir(outputRoot, { recursive: true });
+    expect(files.some((name) => String(name).endsWith('.tmp'))).toBe(false);
+    expect(files.some((name) => String(name).endsWith('.agentdock-export.lock'))).toBe(false);
+
+    const installPlan = JSON.parse(
+      await fs.readFile(path.join(outputRoot, 'meta', 'install-plan.json'), 'utf8'),
+    );
+    expect(installPlan.sources.length).toBeGreaterThan(0);
+  });
 });

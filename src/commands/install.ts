@@ -60,6 +60,10 @@ export async function runInstallCommand(packagePath?: string, targetPath?: strin
         code = COMMAND_ERROR_CODES.MISSING_INSTALL_PLAN;
       } else if (message.includes('Install conflict detected')) {
         code = COMMAND_ERROR_CODES.INSTALL_CONFLICT;
+      } else if (message.includes('PATH_ESCAPE')) {
+        code = COMMAND_ERROR_CODES.PATH_ESCAPE;
+      } else if (message.includes('LOCK_TIMEOUT')) {
+        code = COMMAND_ERROR_CODES.LOCK_TIMEOUT;
       }
 
       return {

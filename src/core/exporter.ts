@@ -2,7 +2,7 @@ import path from 'node:path';
 import type { AgentDockManifest } from '../manifest/types';
 import { renderTemplateFile } from './template-renderer';
 import { resolveSourceDestination } from './source-destination';
-import { copyDirectoryFiltered, copyDirectorySafe, copyFileSafe, ensureDirectory, resolveFrom, writeJsonFile, writeTextFile } from '../utils/fs';
+import { acquireLock, copyDirectoryFiltered, copyDirectorySafe, copyFileSafe, ensureDirectory, releaseLock, resolveFrom, writeJsonFile, writeTextFile } from '../utils/fs';
 
 export interface InstallPlanEntry {
   id: string;
@@ -32,9 +32,13 @@ export interface ExportResult {
 
 export async function exportManifest(manifest: AgentDockManifest, manifestDirectory: string): Promise<ExportResult> {
   const outputPath = resolveFrom(manifestDirectory, manifest.outputs.path);
-  const followSymlinks = manifest.options?.followSymlinks !== false;
-  const payloadSourcesRoot = path.join(outputPath, 'payload', 'sources');
-  const payloadTemplatesRoot = path.join(outputPath, 'payload', 'templates');
+  await ensureDirectory(outputPath);
+  const lockFile = path.join(outputPath, '.agentdock-export.lock');
+  const lockHandle = await acquireLock(lockFile);
+  try {
+    const followSymlinks = manifest.options?.followSymlinks !== false;
+    const payloadSourcesRoot = path.join(outputPath, 'payload', 'sources');
+    const payloadTemplatesRoot = path.join(outputPath, 'payload', 'templates');
   const installPlan: InstallPlan = {
     targetPath: manifest.install?.targetPath,
     overwrite: manifest.install?.overwrite ?? false,
@@ -98,5 +102,8 @@ export async function exportManifest(manifest: AgentDockManifest, manifestDirect
     manifestVersion: manifest.version,
   });
 
-  return { outputPath, snapshotPath, installPlanPath };
+    return { outputPath, snapshotPath, installPlanPath };
+  } finally {
+    await releaseLock(lockHandle, lockFile);
+  }
 }

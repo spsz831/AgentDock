@@ -285,4 +285,35 @@ describe('cli upgrade command', () => {
     expect(payload.success).toBe(false);
     expect(payload.errors[0]?.code).toBe(COMMAND_ERROR_CODES.MANIFEST_NOT_FOUND);
   });
+
+  it('writes the upgraded manifest atomically without leaving temporary fragments', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agentdock-upgrade-atomic-'));
+    const manifestPath = path.join(tempRoot, 'agentdock.yml');
+    const original = [
+      'version: 1',
+      'project:',
+      '  name: legacy-demo',
+      'sources:',
+      '  - id: workspace',
+      '    type: directory',
+      '    path: ./workspace',
+      'outputs:',
+      '  type: directory',
+      '  path: ./dist/out',
+    ].join('\n');
+
+    await fs.writeFile(manifestPath, original, 'utf8');
+    const result = await runCli(['upgrade', manifestPath]);
+
+    expect(result.exitCode).toBe(0);
+
+    // Atomic tmp+rename leaves no .tmp fragments behind.
+    const files = await fs.readdir(tempRoot);
+    expect(files.some((name) => name.endsWith('.tmp'))).toBe(false);
+
+    // The resulting manifest must be a complete, parseable document.
+    const upgraded = await fs.readFile(manifestPath, 'utf8');
+    expect(upgraded).toContain('version: 2');
+    expect(upgraded).toContain('destination: ./workspace');
+  });
 });

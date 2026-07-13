@@ -6,18 +6,72 @@ export function resolveFrom(baseDir: string, targetPath: string): string {
   return path.resolve(baseDir, targetPath);
 }
 
+/**
+ * Resolve `relativeTarget` against `root` and assert the result stays within `root`.
+ * Throws PATH_ESCAPE if it would escape (e.g. destination: ../../../etc/x). Blocks path traversal.
+ */
+export function safeResolveWithin(root: string, relativeTarget: string, label = 'path'): string {
+  const resolvedRoot = path.resolve(root);
+  const resolved = path.resolve(resolvedRoot, relativeTarget);
+  const inside = resolved === resolvedRoot || resolved.startsWith(resolvedRoot + path.sep);
+  if (!inside) {
+    throw new Error(`PATH_ESCAPE: ${label} resolves outside the allowed root: ${relativeTarget}`);
+  }
+  return resolved;
+}
+
+/**
+ * Acquire an exclusive lock file (O_EXCL). Retries until timeout, then throws LOCK_TIMEOUT.
+ * Caller MUST call releaseLock in a finally block.
+ */
+export async function acquireLock(lockPath: string, timeoutMs = 10000, retryMs = 200): Promise<fs.FileHandle> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    try {
+      return await fs.open(lockPath, 'wx');
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code === 'EEXIST') {
+        if (Date.now() >= deadline) {
+          throw new Error(`LOCK_TIMEOUT: another agentdock process holds the lock at ${lockPath}`);
+        }
+        await new Promise((resolve) => setTimeout(resolve, retryMs));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
+export async function releaseLock(handle: fs.FileHandle, lockPath: string): Promise<void> {
+  try {
+    await handle.close();
+  } catch {
+    /* ignore */
+  }
+  try {
+    await fs.rm(lockPath, { force: true });
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function ensureDirectory(dirPath: string): Promise<void> {
   await fs.mkdir(dirPath, { recursive: true });
 }
 
 export async function copyFileSafe(sourcePath: string, targetPath: string): Promise<void> {
   await ensureDirectory(path.dirname(targetPath));
-  await fs.copyFile(sourcePath, targetPath);
+  const tmpPath = `${targetPath}.${process.pid}.${Date.now()}.tmp`;
+  await fs.copyFile(sourcePath, tmpPath);
+  await fs.rename(tmpPath, targetPath);
 }
 
 export async function writeTextFile(targetPath: string, content: string): Promise<void> {
   await ensureDirectory(path.dirname(targetPath));
-  await fs.writeFile(targetPath, content, 'utf8');
+  const tmpPath = `${targetPath}.${process.pid}.${Date.now()}.tmp`;
+  await fs.writeFile(tmpPath, content, 'utf8');
+  await fs.rename(tmpPath, targetPath);
 }
 
 interface WalkedFile {
@@ -120,5 +174,7 @@ export async function readJsonFile<T>(targetPath: string): Promise<T> {
 
 export async function writeJsonFile(targetPath: string, data: unknown): Promise<void> {
   await ensureDirectory(path.dirname(targetPath));
-  await fs.writeFile(targetPath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+  const tmpPath = `${targetPath}.${process.pid}.${Date.now()}.tmp`;
+  await fs.writeFile(tmpPath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+  await fs.rename(tmpPath, targetPath);
 }
