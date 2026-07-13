@@ -187,7 +187,7 @@ scan → manifest v3 → export --from-scan → 稳定包 → install → 目标
 | **v0.1.2** | 通用打包器（历史） | init/validate/export/install/upgrade | ✅ 已发布（已成过去式，已被 v0.4 精简移除） |
 | **v0.2** | 引擎加固 + Claude 扫描闭环 | P0 路径穿越修复/锁/原子写/幂等；`scan --agent claude`；`export --from-scan` 打通 scan→install 闭环 | ✅ 已完成（截至 2026-07-12，48 测全绿） |
 | **v0.3** | 覆盖 + 感知 | `doctor` ✅；`scan --agent codex` ✅（TOML 解析 `config.toml`、隔离 `AGENTDOCK_CODEX_*` 占位、强制跳过 `auth.json`/`logs.sqlite`、scan→export→install 闭环打通）；`list` ✅（纯展示清单，v3 直接复用） | ✅ 已完成（截至 2026-07-12，65 测全绿） |
-| **v0.4** | 分发 + 跨机 | `npm publish`（shebang / `tsc` 出 `dist/` / 确认 `bin` / 安装文档）；跨机路径重写（绝对 home → 相对占位） | ⬜ |
+| **v0.4** | 分发 + 跨机 | `npm publish`（shebang / `tsc` 出 `dist/` / 确认 `bin` / 安装文档）；跨机路径重写（绝对 home → 相对占位） | ✅ 已完成（2026-07-13 发布 `agentdock-cli@0.4.0` + `0.4.1` 同步精简版，`npx agentdock-cli` 可用） |
 | **v0.5+（远景）** | 团队化 | 团队基线包、CI 集成范例、模板市场（可选） | 🔭 规划中 |
 
 **排期原则**（按用户价值排序，非按技术依赖）：
