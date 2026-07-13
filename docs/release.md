@@ -13,8 +13,9 @@ This project currently follows a simple semver process:
    - `npm run build`
    - `npm test`
 3. Verify key smoke paths:
-   - `npm run cli -- validate agentdock.yml --json`
-   - `npm run cli -- upgrade agentdock.yml --dry-run --json`
+   - `npm run cli -- validate --help`
+   - `npm run cli -- scan --agent claude --root ~ --out ./scan-out`
+   - `npm run cli -- doctor --from-scan ./scan-out/agentdock.scan.yml`
 4. Update `CHANGELOG.md` for the target version.
 5. Regenerate grouped commit section for the draft notes:
    - `npm run release:commits -- --from <from-ref> --to <to-ref> --file docs/releases/<version>-draft.md`

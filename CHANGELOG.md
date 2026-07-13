@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Removed
+- `init` command (generic manifest scaffolding) — the AI migration flow uses `scan` to produce manifests, so `init` is no longer needed.
+- `upgrade` command (v1→v2 manifest upgrade) — superseded by the `export --from-scan` bridge, which flattens the v3 scan manifest into the v2 package format.
+- Generic packager demo assets: `examples/agentdock.example.yml`, `templates/.env.example`, and the broken root `agentdock.yml`.
+- Orphaned types/constants: `src/types/upgrade-report.ts`, `src/constants/upgrade-warning-codes.ts`, and the `MANIFEST_ALREADY_EXISTS` / `UNSUPPORTED_MANIFEST_VERSION` error codes.
+- Suite reduced to 53 tests (the 14 `init`/`upgrade` tests were removed).
+
+### Docs
+- README, PRD, `docs/manifest.md`, `docs/release.md`, `docs/scan-design.md` no longer reference `init`/`upgrade`; product scope is now strictly the AI assistant migration flow (`scan` / `export` / `install` / `doctor` / `list` / `validate`).
+
 ## [0.4.0] - 2026-07-12
 
 ### Release
