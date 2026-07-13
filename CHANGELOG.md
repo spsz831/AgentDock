@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.3] - 2026-07-13
+
+### Changed
+- **`doctor` is now actionable** — every warn/fail check carries a `remediation` field with a concrete fix (e.g. how to replace a plaintext token with a `{{AGENTDOCK_*}}` placeholder, how to rebuild a missing `.env.example`, what to do about run-state files leaking into artifacts).
+- **Quantized exit codes** for `doctor`: `0` = all pass, `1` = warnings only (migratable but risky), `2` = failures present. Previously binary `0`/`1`. Lets CI distinguish "degraded" from "broken".
+- `doctor` text and Markdown (`doctor-report.md`) output now render the remediation under each non-pass check; `--json` includes it in the report.
+- README command cheat-sheet documents the exit-code semantics.
+
 ## [0.4.2] - 2026-07-13
 
 ### Docs

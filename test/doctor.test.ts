@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { runDoctor } from '../src/core/doctor';
+import { runDoctor, doctorExitCode } from '../src/core/doctor';
+import type { DoctorReportData, DoctorCheck } from '../src/manifest/types';
 
 async function makeTempDir(prefix: string): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), prefix));
@@ -152,5 +153,53 @@ describe('doctor', () => {
     expect(report.healthy).toBe(false);
     const leak = report.checks.find((c) => c.id === 'secret-leak');
     expect(leak?.status).toBe('fail');
+  });
+
+  it('actionable: fail/warn checks carry a non-empty remediation', async () => {
+    // live + a plaintext token in a skill file → secret-leak FAILS
+    const home = await makeTempDir('doc-action-');
+    await writeFile(
+      path.join(home, '.claude', 'skills', 'bad', 'SKILL.md'),
+      'token ghp_REALVALUE1234567890\n',
+    );
+    const report = await runDoctor({ agent: 'claude', root: home });
+    const leak = report.checks.find((c) => c.id === 'secret-leak');
+    expect(leak?.status).toBe('fail');
+    expect(leak?.remediation && leak.remediation.length).toBeGreaterThan(0);
+    // the remediation should tell the user what to DO (mention placeholder or .env)
+    expect(leak?.remediation).toMatch(/占位符|\.env/);
+  });
+
+  describe('doctorExitCode (quantized)', () => {
+    const mk = (status: DoctorCheck['status']): DoctorReportData => ({
+      mode: 'live',
+      target: '/tmp/x',
+      healthy: status !== 'fail',
+      summary: '',
+      checks: [{ id: 'c', label: 'L', status, detail: 'd', findings: [] }],
+    });
+
+    it('all pass → 0', () => {
+      expect(doctorExitCode(mk('pass'))).toBe(0);
+    });
+    it('contains warn only → 1', () => {
+      expect(doctorExitCode(mk('warn'))).toBe(1);
+    });
+    it('contains fail → 2', () => {
+      expect(doctorExitCode(mk('fail'))).toBe(2);
+    });
+    it('mixed warn+pass → 1 (worst non-fail)', () => {
+      const report: DoctorReportData = {
+        mode: 'live',
+        target: '/tmp/x',
+        healthy: true,
+        summary: '',
+        checks: [
+          { id: 'a', label: 'A', status: 'pass', detail: 'd', findings: [] },
+          { id: 'b', label: 'B', status: 'warn', detail: 'd', findings: [] },
+        ],
+      };
+      expect(doctorExitCode(report)).toBe(1);
+    });
   });
 });
