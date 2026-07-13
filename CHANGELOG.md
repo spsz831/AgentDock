@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.4.1] - 2026-07-13
 
 ### Removed
 - `init` command (generic manifest scaffolding) — the AI migration flow uses `scan` to produce manifests, so `init` is no longer needed.
@@ -13,6 +13,8 @@ All notable changes to this project will be documented in this file.
 
 ### Docs
 - README, PRD, `docs/manifest.md`, `docs/release.md`, `docs/scan-design.md` no longer reference `init`/`upgrade`; product scope is now strictly the AI assistant migration flow (`scan` / `export` / `install` / `doctor` / `list` / `validate`).
+
+> This release brings the published npm package in sync with the simplified codebase (the `0.4.0` tarball still contained the removed `init`/`upgrade` commands).
 
 ## [0.4.0] - 2026-07-12
 
