@@ -237,7 +237,7 @@ async function doctorLiveClaude(root: string): Promise<DoctorCheck[]> {
     if (leaks.length) {
       leakFindings.push({
         severity: 'error',
-        message: `在"原文复制"文件中发现 ${leaks.length} 处疑似真实令牌，scan 不会对其打码，迁移会泄露`,
+        message: `在"原文复制"文件（skills/agents/memory/hooks/plugins）中发现 ${leaks.length} 处疑似真实令牌；scan 不在扫描期打码，但 \`export --from-scan\` 会自动打码（安全），不会随包泄露`,
         path: entry.path,
       });
     }
@@ -265,7 +265,7 @@ async function doctorLiveClaude(root: string): Promise<DoctorCheck[]> {
     '敏感泄露风险',
     leakFindings,
     '导出时令牌会被隔离，不会随包泄露',
-    '存在明文令牌的"原文复制"文件（skills/agents/memory/hooks/plugins）scan 不会自动打码。请将明文令牌替换为 `{{AGENTDOCK_<AGENT>_<KEY>}}` 占位符并移入 `.env`；若该文件不应随迁移携带，可在 `scan` 后手动剔除。切勿连同真实令牌一起打包分发。',
+    '免费文本中的明文令牌，`scan` 不在扫描期打码，但 `export --from-scan` 会自动打码（安全），不会随包泄露；若 `doctor --package` 仍报泄露，说明该文件未被正确打码，可手动将明文替换为 `{{AGENTDOCK_<AGENT>_<KEY>}}` 占位符。',
   ));
 
   // 4. 运行态隔离
@@ -365,7 +365,7 @@ async function doctorLiveCodex(root: string): Promise<DoctorCheck[]> {
     if (leaks.length) {
       leakFindings.push({
         severity: 'error',
-        message: `在"原文复制"文件中发现 ${leaks.length} 处疑似真实令牌，scan 不会对其打码，迁移会泄露`,
+        message: `在"原文复制"文件（skills/agents/memory/hooks/plugins）中发现 ${leaks.length} 处疑似真实令牌；scan 不在扫描期打码，但 \`export --from-scan\` 会自动打码（安全），不会随包泄露`,
         path: entry.path,
       });
     }
@@ -391,7 +391,7 @@ async function doctorLiveCodex(root: string): Promise<DoctorCheck[]> {
     '敏感泄露风险',
     leakFindings,
     '导出时令牌会被隔离，不会随包泄露',
-    '存在明文令牌的"原文复制"文件（skills/agents/memory/hooks/plugins）scan 不会自动打码。请将明文令牌替换为 `{{AGENTDOCK_<AGENT>_<KEY>}}` 占位符并移入 `.env`；若该文件不应随迁移携带，可在 `scan` 后手动剔除。切勿连同真实令牌一起打包分发。',
+    '免费文本中的明文令牌，`scan` 不在扫描期打码，但 `export --from-scan` 会自动打码（安全），不会随包泄露；若 `doctor --package` 仍报泄露，说明该文件未被正确打码，可手动将明文替换为 `{{AGENTDOCK_<AGENT>_<KEY>}}` 占位符。',
   ));
 
   // 4. 运行态隔离

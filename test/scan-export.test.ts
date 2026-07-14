@@ -136,6 +136,122 @@ describe('scan → export → install closed loop', () => {
     expect(m.secrets.some((s) => s.key === 'AGENTDOCK_CLAUDE_GITHUB_TOKEN')).toBe(true);
     await cleanup([home, scanDir]);
   });
+
+  it('masks plaintext secrets found in free-text skill/memory files (P0-#2)', async () => {
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), 'ad-ft-'));
+    const claudeDir = path.join(home, '.claude');
+    await fs.mkdir(path.join(claudeDir, 'skills', 'secret-skill'), { recursive: true });
+    await fs.writeFile(
+      path.join(claudeDir, 'skills', 'secret-skill', 'SKILL.md'),
+      '# secret skill\nUse the API with sk-ABCDEFGHIJKLMNOPQrstuvwxyz\n',
+      'utf8',
+    );
+    await fs.mkdir(path.join(claudeDir, 'memory'), { recursive: true });
+    await fs.writeFile(
+      path.join(claudeDir, 'memory', 'NOTES.md'),
+      'token ghp_REALVALUE1234567890AB\n',
+      'utf8',
+    );
+
+    const scanDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ad-scan-'));
+    const pkgDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ad-pkg-'));
+
+    await runScan({ agent: 'claude', root: home, out: scanDir });
+    await exportFromScan({ scanManifestPath: path.join(scanDir, 'agentdock.scan.yml'), out: pkgDir });
+
+    // 1. real tokens must NEVER appear anywhere in the package
+    const all = (await dumpFiles(pkgDir)).join('\n');
+    expect(all.includes('sk-ABCDEFGHIJKLMNOPQrstuvwxyz')).toBe(false);
+    expect(all.includes('ghp_REALVALUE1234567890AB')).toBe(false);
+
+    // 2. masked placeholders present, and recorded in the package's own .env.example
+    expect(all.includes('{{AGENTDOCK_CLAUDE_FREETEXT_')).toBe(true);
+    const envExample = await fs.readFile(path.join(pkgDir, '.env.example'), 'utf8');
+    expect(envExample.includes('AGENTDOCK_CLAUDE_FREETEXT_')).toBe(true);
+    expect(envExample.includes('****')).toBe(true); // masked sample, not the real value
+
+    // 3. the augmented secrets are folded into the resolved manifest
+    const resolved = (await readJson(path.join(pkgDir, 'manifest.resolved.json'))) as {
+      secrets: { key: string; source: string }[];
+    };
+    expect(resolved.secrets.some((s) => s.source === 'freetext')).toBe(true);
+
+    await cleanup([home, scanDir, pkgDir]);
+  });
+
+  it('re-injects free-text secrets when --env is supplied (P0-#2 round-trip)', async () => {
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), 'ad-ft-'));
+    const claudeDir = path.join(home, '.claude');
+    await fs.mkdir(path.join(claudeDir, 'skills', 'secret-skill'), { recursive: true });
+    await fs.writeFile(
+      path.join(claudeDir, 'skills', 'secret-skill', 'SKILL.md'),
+      '# secret skill\nUse the API with sk-ABCDEFGHIJKLMNOPQrstuvwxyz\n',
+      'utf8',
+    );
+
+    const scanDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ad-scan-'));
+    const pkgDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ad-pkg-'));
+
+    await runScan({ agent: 'claude', root: home, out: scanDir });
+
+    // first export without env to learn the placeholder key
+    await exportFromScan({ scanManifestPath: path.join(scanDir, 'agentdock.scan.yml'), out: pkgDir });
+    const resolved = (await readJson(path.join(pkgDir, 'manifest.resolved.json'))) as {
+      secrets: { key: string; source: string }[];
+    };
+    const ft = resolved.secrets.find((s) => s.source === 'freetext');
+    expect(ft).toBeTruthy();
+
+    const envPath = path.join(scanDir, '.env');
+    await fs.writeFile(envPath, `${ft!.key}=sk-REINJECTEDVALUE0001\n`, 'utf8');
+
+    // re-export WITH env → real value flows back into free text
+    await exportFromScan({ scanManifestPath: path.join(scanDir, 'agentdock.scan.yml'), out: pkgDir, env: envPath });
+    const all = (await dumpFiles(pkgDir)).join('\n');
+    expect(all.includes('sk-REINJECTEDVALUE0001')).toBe(true);
+    expect(all.includes('{{AGENTDOCK_CLAUDE_FREETEXT_')).toBe(false);
+
+    await cleanup([home, scanDir, pkgDir]);
+  });
+
+  it('deep-merges .claude.json into an existing target instead of overwriting (P0-#1)', async () => {
+    const home = await makeFakeHome();
+    const scanDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ad-scan-'));
+    const pkgDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ad-pkg-'));
+
+    await runScan({ agent: 'claude', root: home, out: scanDir });
+    await exportFromScan({ scanManifestPath: path.join(scanDir, 'agentdock.scan.yml'), out: pkgDir });
+
+    // the aggregated .claude.json entry must be flagged merge:true
+    const plan = (await readJson(path.join(pkgDir, 'meta', 'install-plan.json'))) as {
+      sources: { id: string; to: string; merge?: boolean }[];
+    };
+    const mcpEntry = plan.sources.find((s) => s.to === '.claude.json');
+    expect(mcpEntry?.merge).toBe(true);
+
+    // target machine ALREADY has a .claude.json with its own keys + servers
+    const target = await fs.mkdtemp(path.join(os.tmpdir(), 'ad-target-'));
+    await fs.writeFile(
+      path.join(target, '.claude.json'),
+      JSON.stringify({
+        theme: 'light',
+        mcpServers: { preExisting: { type: 'stdio', command: 'old' } },
+      }),
+      'utf8',
+    );
+
+    // must NOT throw a conflict (merge entries are exempt) and must preserve + union
+    await expect(installPackage(pkgDir, target)).resolves.toBeTruthy();
+    const merged = (await readJson(path.join(target, '.claude.json'))) as {
+      theme: string;
+      mcpServers: Record<string, unknown>;
+    };
+    expect(merged.theme).toBe('light'); // target's other top-level key preserved
+    expect(merged.mcpServers.preExisting).toBeTruthy(); // target's existing server preserved
+    expect(merged.mcpServers.github).toBeTruthy(); // package's server added
+
+    await cleanup([home, scanDir, pkgDir, target]);
+  });
 });
 
 async function dumpFiles(root: string): Promise<string[]> {
