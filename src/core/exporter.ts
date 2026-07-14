@@ -9,6 +9,13 @@ export interface InstallPlanEntry {
   kind: 'file' | 'directory';
   from: string;
   to: string;
+  /**
+   * When true, the entry is a JSON file that should be *deep-merged*
+   * into the existing target (preserving other top-level keys and other
+   * entries) instead of overwritten. Used for `.claude.json` so installing
+   * onto a machine that already has config never clobbers it.
+   */
+  merge?: boolean;
 }
 
 export interface TemplatePlanEntry {

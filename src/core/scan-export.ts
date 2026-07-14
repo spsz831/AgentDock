@@ -1,7 +1,15 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import YAML from 'yaml';
-import { maskSecretsInPlace } from '../scanners/sensitive';
+import {
+  findSecretLeaks,
+  injectSecretsInText,
+  maskSecretsInPlace,
+  maskSecretsInText,
+  renderEnvExample,
+  type FreeTextSecret,
+} from '../scanners/sensitive';
+import type { Dirent } from 'node:fs';
 import { parse as parseToml, stringify as stringifyToml } from 'smol-toml';
 import {
   acquireLock,
@@ -124,7 +132,44 @@ export async function exportFromScan(options: ScanExportOptions): Promise<ScanEx
     await ensureDirectory(payloadSourcesRoot);
 
     const sources: InstallPlanEntry[] = [];
+    const freeTextSecrets: FreeTextSecret[] = [];
     const toFrom = (diskRel: string): string => `payload/sources/${diskRel}`;
+
+    /**
+     * Walk a copied directory and mask (or re-inject, when `env` is set)
+     * leaked secret tokens in every text file. Skips files with no leak and
+     * no placeholder so binaries / clean files are never rewritten.
+     */
+    async function processDirectoryTexts(dir: string, agent: string): Promise<void> {
+      let entries: Dirent[];
+      try {
+        entries = await fs.readdir(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          await processDirectoryTexts(full, agent);
+          continue;
+        }
+        let content: string;
+        try {
+          content = await fs.readFile(full, 'utf8');
+        } catch {
+          continue; // unreadable / binary — leave untouched
+        }
+        const hasLeak = findSecretLeaks(content).length > 0;
+        const hasPlaceholder = env ? /\{\{AGENTDOCK_[A-Z0-9_]+\}\}/.test(content) : false;
+        if (!hasLeak && !hasPlaceholder) {
+          continue;
+        }
+        const out = env
+          ? injectSecretsInText(maskSecretsInText(content, agent, freeTextSecrets), env)
+          : maskSecretsInText(content, agent, freeTextSecrets);
+        await writeTextFile(full, out);
+      }
+    }
 
     for (const [agentName, domain] of Object.entries(manifest.agents) as [string, AgentDomain | undefined][]) {
       if (!domain) {
@@ -158,7 +203,11 @@ export async function exportFromScan(options: ScanExportOptions): Promise<ScanEx
         const diskRel = '.agentdock-mcp.json';
         const content = JSON.stringify(merged, null, 2);
         await writeTextFile(path.join(payloadSourcesRoot, diskRel), content);
-        sources.push({ id: `${agent}-mcp-merged`, kind: 'file', from: toFrom(diskRel), to: '.claude.json' });
+        // `merge: true` → installer deep-merges this JSON into the target's
+        // existing file (preserving other top-level keys / other mcpServers)
+        // instead of overwriting it. Makes `install` safe on a machine
+        // that already has a `.claude.json`.
+        sources.push({ id: `${agent}-mcp-merged`, kind: 'file', from: toFrom(diskRel), to: '.claude.json', merge: true });
       }
 
       // --- Everything else ---
@@ -175,8 +224,10 @@ export async function exportFromScan(options: ScanExportOptions): Promise<ScanEx
         const targetDisk = path.join(payloadSourcesRoot, rel);
 
         if (kind === 'directory') {
-          // verbatim recursive copy (skill dirs); re-injection skipped for directories in v0.3
+          // recursive copy (skill dirs), then mask/inject any leaked
+          // tokens inside the copied text files (prevents plaintext riding into the package)
           await copyDirectorySafe(entry.path, targetDisk);
+          await processDirectoryTexts(targetDisk, agent);
         } else if (entry.kind === 'settings') {
           if (path.extname(entry.path) === '.toml') {
             // Codex config.toml: parse as TOML, mask secrets at the object
@@ -209,11 +260,26 @@ export async function exportFromScan(options: ScanExportOptions): Promise<ScanEx
           }
         } else {
           // skill .md / agent .md / plugin json / hook script / memory md:
-          // copied verbatim. In v0.2 `scan` isolates secrets only from settings
-          // + mcpServers, so masking free text or plugin registries here would
-          // risk false-positive corruption. Re-injection is handled at the
-          // object level for JSON secrets above.
-          await copyFileSafe(entry.path, targetDisk);
+          // mask (or re-inject when `env` is set) any leaked secret tokens
+          // so plaintext never rides into the package. Clean files (no leak,
+          // no placeholder) are copied verbatim.
+          let content: string;
+          try {
+            content = await fs.readFile(entry.path, 'utf8');
+          } catch {
+            await copyFileSafe(entry.path, targetDisk);
+            continue;
+          }
+          const hasLeak = findSecretLeaks(content).length > 0;
+          const hasPlaceholder = env ? /\{\{AGENTDOCK_[A-Z0-9_]+\}\}/.test(content) : false;
+          if (!hasLeak && !hasPlaceholder) {
+            await copyFileSafe(entry.path, targetDisk);
+          } else {
+            const out = env
+              ? injectSecretsInText(maskSecretsInText(content, agent, freeTextSecrets), env)
+              : maskSecretsInText(content, agent, freeTextSecrets);
+            await writeTextFile(targetDisk, out);
+          }
         }
 
         sources.push({ id: entry.id, kind, from: toFrom(rel), to: rel });
@@ -229,8 +295,25 @@ export async function exportFromScan(options: ScanExportOptions): Promise<ScanEx
     const snapshotPath = path.join(outputPath, 'manifest.resolved.json');
     const installPlanPath = path.join(outputPath, 'meta', 'install-plan.json');
     const packageMetadataPath = path.join(outputPath, 'package.json');
+    const envExamplePath = path.join(outputPath, '.env.example');
 
-    await writeJsonFile(snapshotPath, manifest);
+    // Free-text secrets discovered during export are folded into the resolved
+    // manifest + the package's own `.env.example` so `--env` re-injection
+    // and `doctor --package` stay consistent end-to-end.
+    const augmentedSecrets = [
+      ...manifest.secrets,
+      ...freeTextSecrets.map((secret) => ({
+        key: secret.key,
+        source: secret.source,
+        sample: secret.sample,
+      })),
+    ];
+    const resolvedManifest: AgentDockManifestV3 = {
+      ...manifest,
+      secrets: augmentedSecrets,
+    };
+
+    await writeJsonFile(snapshotPath, resolvedManifest);
     await writeJsonFile(installPlanPath, installPlan);
     await writeJsonFile(packageMetadataPath, {
       name: 'agentdock-scan-package',
@@ -238,6 +321,7 @@ export async function exportFromScan(options: ScanExportOptions): Promise<ScanEx
       project: manifest.project.name,
       manifestVersion: 3,
     });
+    await writeTextFile(envExamplePath, renderEnvExample(augmentedSecrets));
 
     return { outputPath, snapshotPath, installPlanPath };
   } finally {

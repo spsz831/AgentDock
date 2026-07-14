@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-07-14
+
+### Security
+- **P0 — Free-text secret masking at export** (`scan`/`export --from-scan`): secrets leaked inside free-text files (skills, agents, memory, hooks `.md`) are now detected and replaced with stable `{{AGENTDOCK_<AGENT>_FREETEXT_<HASH>}}` placeholders, folded into the package `.env.example` + resolved manifest, and re-injectable via `--env`. Previously these were copied verbatim into the package, contradicting the "security non-negotiable" principle. Detection uses the same `findSecretLeaks` regex family as the JSON/object path masking.
+
+### Fixed
+- **P0 — Deep-merge install for `.claude.json`**: installing into a target that already has a `.claude.json` no longer rejects (conflict) or overwrites (data loss). Aggregated MCP servers are now emitted as `merge: true` sources; the installer deep-merges package entries into the existing file, preserving other top-level keys (e.g. `theme`) and pre-existing `mcpServers`, while adding the package's servers. Source entry wins on key collision.
+
+### CI
+- **P1 — Windows CI matrix**: `build-and-test` now runs on both `ubuntu-latest` and `windows-latest`, catching Windows-specific path/IO regressions instead of only Linux.
+
 ## [0.4.3] - 2026-07-13
 
 ### Changed

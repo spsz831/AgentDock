@@ -10,6 +10,7 @@ import {
   readJsonFile,
   releaseLock,
   safeResolveWithin,
+  writeJsonFile,
 } from '../utils/fs';
 
 export interface InstallResult {
@@ -20,6 +21,7 @@ interface ResolvedEntry {
   from: string;
   to: string;
   kind: 'file' | 'directory' | 'template';
+  merge?: boolean;
 }
 
 async function isIdenticalFile(targetPath: string, sourcePath: string): Promise<boolean> {
@@ -68,6 +70,40 @@ async function isIdenticalDirectory(targetPath: string, sourcePath: string): Pro
   return true;
 }
 
+/**
+ * Recursively merge `source` into `target`. Objects merge key-by-key
+ * (source wins on name conflict); arrays / primitives are replaced by source.
+ * Used so a merged `.claude.json` keeps the target's other top-level
+ * keys and its existing mcpServers while the package's servers win.
+ */
+function deepMerge(target: unknown, source: unknown): unknown {
+  if (typeof source !== 'object' || source === null || Array.isArray(source)) {
+    return source;
+  }
+  if (typeof target !== 'object' || target === null || Array.isArray(target)) {
+    return source;
+  }
+  const out: Record<string, unknown> = { ...(target as Record<string, unknown>) };
+  for (const [key, value] of Object.entries(source)) {
+    out[key] = deepMerge((target as Record<string, unknown>)[key], value);
+  }
+  return out;
+}
+
+async function mergeJsonFile(from: string, to: string): Promise<void> {
+  const source = JSON.parse(await fs.readFile(from, 'utf8')) as unknown;
+  let target: unknown = {};
+  if (await pathExists(to)) {
+    try {
+      target = JSON.parse(await fs.readFile(to, 'utf8')) as unknown;
+    } catch {
+      target = {};
+    }
+  }
+  const merged = deepMerge(target, source);
+  await writeJsonFile(to, merged);
+}
+
 export async function installPackage(packagePath: string, explicitTargetPath?: string, overwrite = false): Promise<InstallResult> {
   const packageRoot = path.resolve(packagePath);
   const manifestSnapshotPath = path.join(packageRoot, 'manifest.resolved.json');
@@ -95,6 +131,7 @@ export async function installPackage(packagePath: string, explicitTargetPath?: s
       from: safeResolveWithin(packageRoot, source.from, 'source.from'),
       to: safeResolveWithin(targetRoot, source.to, 'source.to'),
       kind: source.kind,
+      merge: source.merge ?? false,
     })),
     ...installPlan.templates.map((template) => ({
       from: safeResolveWithin(packageRoot, template.from, 'template.from'),
@@ -112,6 +149,10 @@ export async function installPackage(packagePath: string, explicitTargetPath?: s
     const conflicts: string[] = [];
 
     for (const entry of entries) {
+      // Merge entries blend into the existing target; they never conflict.
+      if (entry.merge) {
+        continue;
+      }
       if (!(await pathExists(entry.to))) {
         continue;
       }
@@ -134,6 +175,12 @@ export async function installPackage(packagePath: string, explicitTargetPath?: s
     }
 
     for (const entry of entries) {
+      if (entry.merge) {
+        // Deep-merge JSON into the existing target (preserving other
+        // top-level keys / other mcpServers). Never clobbers it.
+        await mergeJsonFile(entry.from, entry.to);
+        continue;
+      }
       if (entry.kind === 'directory') {
         await copyDirectorySafe(entry.from, entry.to);
       } else {

@@ -175,6 +175,71 @@ export function maskSecretsInPlace(
   }
 }
 
+export interface FreeTextSecret {
+  /** Placeholder env var name, e.g. AGENTDOCK_CLAUDE_FREETEXT_3F9K2Q1. */
+  key: string;
+  /** Masked sample for operator reference, e.g. sk-a1***b2. */
+  sample: string;
+  /** Where the secret was found (always `freetext` for free-text masking). */
+  source: string;
+}
+
+/**
+ * Stable short hash so the same token maps to the same placeholder key across
+ * files (keeps `.env.example` / re-injection deduped and deterministic).
+ */
+function stableHash(input: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36).toUpperCase().padStart(7, '0').slice(0, 7);
+}
+
+/**
+ * Mask every secret token found in free text (skills/agents/memory/hooks `.md`,
+ * etc.) with a stable `{{AGENTDOCK_<AGENT>_FREETEXT_<HASH>}}` placeholder,
+ * and record each as a secret so `.env.example` + `--env` re-injection stay
+ * consistent. Replaces the previous verbatim copy that let real tokens ride
+ * into the package. Detection uses the same value patterns as `looksLikeSecret`
+ * / `findSecretLeaks`.
+ */
+export function maskSecretsInText(
+  text: string,
+  agent: string,
+  accumulator: FreeTextSecret[],
+): string {
+  const tokens = [...new Set(findSecretLeaks(text))];
+  if (tokens.length === 0) {
+    return text;
+  }
+  // Longest tokens first so a prefix token can't swallow a longer one.
+  tokens.sort((a, b) => b.length - a.length);
+  let out = text;
+  for (const token of tokens) {
+    const key = `AGENTDOCK_${agent.toUpperCase()}_FREETEXT_${stableHash(token)}`;
+    const placeholder = `{{${key}}}`;
+    if (out.includes(placeholder)) {
+      continue;
+    }
+    out = out.split(token).join(placeholder);
+    accumulator.push({ key, sample: maskSecret(token), source: 'freetext' });
+  }
+  return out;
+}
+
+/**
+ * Re-inject real values into free text for an `--env` export. Placeholders use
+ * the same `{{AGENTDOCK_*_FREETEXT_*}}` names emitted by `maskSecretsInText`,
+ * keyed by the env file's `AGENTDOCK_*` keys.
+ */
+export function injectSecretsInText(text: string, secretsEnv: Record<string, string>): string {
+  return text.replace(/\{\{(AGENTDOCK_[A-Z0-9_]+)\}\}/g, (match, key: string) =>
+    secretsEnv[key] !== undefined ? secretsEnv[key] : match,
+  );
+}
+
 /**
  * Render a `.env.example` from isolated secrets. Only placeholder keys are
  * written — never the real values, which stay on the source machine.
