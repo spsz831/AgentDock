@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { exportManifest } from '../core/exporter';
 import { exportFromScan } from '../core/scan-export';
+import { loadConfig } from '../core/config';
 import { COMMAND_ERROR_CODES } from '../constants/command-error-codes';
 import type { CommandErrorCode } from '../constants/command-error-codes';
 import { loadManifest } from '../manifest/load';
@@ -10,6 +11,7 @@ import { toJsonError, toJsonLine } from '../utils/command-json';
 import type { CommandResult } from './validate';
 
 export async function runExportCommand(manifestPath?: string, options: ParsedCliOptions = {}): Promise<CommandResult> {
+  const config = await loadConfig();
   // `scan` → package bridge: build an installable package from a v3 scan manifest.
   if (options.fromScan) {
     const out = options.out
@@ -19,7 +21,7 @@ export async function runExportCommand(manifestPath?: string, options: ParsedCli
       const exportResult = await exportFromScan({
         scanManifestPath: options.fromScan,
         out,
-        env: options.env ? path.resolve(options.env) : undefined,
+        env: options.env ? path.resolve(options.env) : (config.env ? path.resolve(config.env) : undefined),
         overwrite: options.overwrite,
       });
 

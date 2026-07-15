@@ -127,14 +127,21 @@ restore/
 |---|---|---|
 | `scan` | 发现并提取 AI 助手环境，隔离敏感信息，产出 v3 manifest | `agentdock scan --agent all --root ~ --out ./out` |
 | `export` | 把扫描产物打包成可迁移包（默认打码，`--env` 回注） | `agentdock export --from-scan ./out/agentdock.scan.yml --out ./pkg` |
-| `install` | 从包安全还原到目标机（越界校验 / 锁 / 原子写 / 幂等） | `agentdock install ./pkg ~` |
+| `install` | 从包安全还原到目标机（越界校验 / 锁 / 原子写 / 幂等）；`--dry-run` 只预览不落盘 | `agentdock install ./pkg ~` |
 | `validate` | 校验 manifest 合法性 | `agentdock validate ./pkg/manifest.resolved.json` |
 | `doctor` | 体检环境 / 包：配置健康度、可迁移性、是否泄密（每项附**修复建议**） | `agentdock doctor --agent all --root ~` |
+| `list` | 列出已捕获的 MCP / Skill / Agent 等定义清单 | `agentdock list --package ./pkg` |
+| `diff` | 对比「包内容」与「目标机现状」：哪些新增 / 相同 / 变更 / 需合并 / 会冲突（不落盘） | `agentdock diff ./pkg ~` |
+| `config` | 管理 AgentDock 自身配置（`agent` / `out` / `env` 默认值），存于 `~/.agentdock/config.json` | `agentdock config set agent codex` |
+| `uninstall` | 反向卸载：移除包安装的文件/目录，按「与包内容是否一致」安全删除，merge 条目精确摘回包贡献的键（不动用户改动） | `agentdock uninstall ./pkg ~` |
 
 `doctor` 退出码已量化，便于 CI / 自动化区分严重度：**0** = 全通过、**1** = 仅有警告（可迁移但有隐患）、**2** = 存在失败（需处理）。加 `--json` 可机读，remediation 字段随报告一同返回。
-| `list` | 列出已捕获的 MCP / Skill / Agent 等定义清单 | `agentdock list --package ./pkg` |
 
 支持的双助手：**Claude Code**（JSON：`settings.json` + `.claude.json`）与 **Codex**（TOML：`config.toml` + `AGENTS.md`）。
+
+**Codex 配置合并（与 Claude 同权）**：`config.toml` 以 `merge` 方式安装——目标机若已存在 `config.toml`，只深度合并包内的 `mcp_servers`，**保留其原有的 `model` / `provider` 等设置**，绝不整体覆盖；全新目标机则整文件还原。卸载时同样只精确摘回包贡献的 `mcp_servers`，不动用户既有配置。这与 Claude `.claude.json` 仅合并 `mcpServers` 的语义完全对齐。
+
+**多语言输出（i18n）**：人类可读的命令行输出支持 `en`（默认）与 `zh-CN`，通过环境变量 `AGENTDOCK_LANG` 或 `agentdock config set lang <en|zh-CN>` 切换。`--json` 输出始终为英文（机器按 key 解析，不本地化）。
 
 ## 安全承诺
 
