@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-07-15
+
+P2 enhancement backlog: `diff`, `config`, `uninstall`, Codex coverage parity, and i18n. 92 tests.
+
+### Added
+- **`diff` command + `install --dry-run`** (P2): a read-only preview of what `install` would do against a target — `CREATE` / `OVERWRITE` / `MERGE` / `SKIP` / `CONFLICT` for dry-run, `NEW` / `CHANGED` / `MERGE` / `SAME` / `CONFLICT` for diff. Both share one `planInstall()` code path with the real installer, so the preview can never drift from actual behavior. Neither writes to disk.
+- **`config` command** (P2): persistent AgentDock defaults in `~/.agentdock/config.json` (override via `AGENTDOCK_CONFIG`). Keys: `agent` (`claude`/`codex`/`all`), `out`, `env`, and now `lang` (`en`/`zh-CN`). `scan` honors `agent`/`out`; `export`/`install` honor `env`.
+- **`uninstall` command** (P2): reverses an install with no install-time bookkeeping — the package itself is the source of truth. Files/dirs are removed only when still byte-identical to the package (safe); merge entries are reversed key-by-key so user edits survive; modified files are skipped unless `--force`. `--dry-run` previews.
+- **Codex coverage parity** (P2 #4): Codex `config.toml` is now installed as a `merge: true` entry scoped to `mcp_servers`, so installing onto a machine that already has a `config.toml` **keeps its `model`/`provider`** and only adds the package's MCP servers — matching the Claude `.claude.json` (scoped to `mcpServers`) behavior. The installer/uninstall merge is now format-aware (TOML ↔ JSON). `uninstall` reverses only the contributed `mcp_servers`.
+- **i18n** (P2 #5): human-readable CLI output is localized to `en` (default) and `zh-CN`, selected via the `AGENTDOCK_LANG` env var or `config set lang`. `--json` output is never localized (machines read keys).
+
+### Fixed
+- Codex target `config.toml` is no longer overwritten/clobbered on install (was a parity gap vs Claude).
+
 ## [0.5.0] - 2026-07-14
 
 ### Security

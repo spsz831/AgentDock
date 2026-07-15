@@ -282,7 +282,15 @@ export async function exportFromScan(options: ScanExportOptions): Promise<ScanEx
           }
         }
 
-        sources.push({ id: entry.id, kind, from: toFrom(rel), to: rel });
+        // Codex `config.toml` (and any TOML settings entry) is merged rather
+        // than overwritten, so installing onto a machine that already has a
+        // config.toml keeps its own model/provider settings and only adds the
+        // package's `mcp_servers` — mirroring the Claude `.claude.json` merge
+        // behavior (which scopes to `mcpServers`) and closing the Codex parity
+        // gap. On a fresh target the whole file is restored.
+        const merge = entry.kind === 'settings' && path.extname(entry.path) === '.toml' ? true : undefined;
+        const mergeKeys = merge ? ['mcp_servers'] : undefined;
+        sources.push({ id: entry.id, kind, from: toFrom(rel), to: rel, merge, mergeKeys });
       }
     }
 

@@ -3,6 +3,8 @@ import { COMMAND_ERROR_CODES } from '../constants/command-error-codes';
 import type { CommandErrorCode } from '../constants/command-error-codes';
 import type { CommandResult, ParsedCliOptions } from '../manifest/types';
 import { toJsonError, toJsonLine } from '../utils/command-json';
+import { renderPlan } from '../utils/plan-render';
+import { t } from '../i18n';
 
 export async function runInstallCommand(packagePath?: string, targetPath?: string, options: ParsedCliOptions = {}): Promise<CommandResult> {
   if (!packagePath) {
@@ -27,7 +29,36 @@ export async function runInstallCommand(packagePath?: string, targetPath?: strin
   }
 
   try {
-    const result = await installPackage(packagePath, targetPath, options.overwrite === true);
+    const result = await installPackage(packagePath, targetPath, options.overwrite === true, options.dryRun === true);
+
+    if (options.dryRun === true) {
+      const plan = result.plan!;
+      if (options.json === true) {
+        return {
+          exitCode: 0,
+          stdout: [toJsonLine(
+            'install',
+            true,
+            {
+              packagePath,
+              targetPath: result.targetPath,
+              dryRun: true,
+              overwrite: options.overwrite === true,
+              entries: plan.entries,
+              conflicts: plan.conflicts.length,
+            },
+            [],
+          )],
+          stderr: [],
+        };
+      }
+      return {
+        exitCode: 0,
+        stdout: renderPlan(plan, 'dry-run'),
+        stderr: [],
+      };
+    }
+
     if (options.json === true) {
       return {
         exitCode: 0,
@@ -47,7 +78,7 @@ export async function runInstallCommand(packagePath?: string, targetPath?: strin
 
     return {
       exitCode: 0,
-      stdout: [`Install completed: ${result.targetPath}`],
+      stdout: [t('install.complete', { path: result.targetPath })],
       stderr: [],
     };
   } catch (error) {

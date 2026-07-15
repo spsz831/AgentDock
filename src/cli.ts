@@ -5,6 +5,10 @@ import { runScanCommand } from './commands/scan';
 import { runDoctorCommand } from './commands/doctor';
 import { runListCommand } from './commands/list';
 import { runValidateCommand } from './commands/validate';
+import { runDiffCommand } from './commands/diff';
+import { runConfigCommand } from './commands/config';
+import { runUninstallCommand } from './commands/uninstall';
+import { initI18n, t } from './i18n';
 import type { CommandResult, ParsedCliOptions } from './manifest/types';
 
 function parseCliOptions(args: string[]): { positionals: string[]; options: ParsedCliOptions } {
@@ -78,6 +82,7 @@ function parseCliOptions(args: string[]): { positionals: string[]; options: Pars
 }
 
 export async function runCli(args: string[]): Promise<CommandResult> {
+  await initI18n();
   const [command, ...rest] = args;
   const { positionals, options } = parseCliOptions(rest);
 
@@ -94,11 +99,17 @@ export async function runCli(args: string[]): Promise<CommandResult> {
       return runDoctorCommand(options);
     case 'list':
       return runListCommand(options);
+    case 'diff':
+      return runDiffCommand(positionals[0], positionals[1], options);
+    case 'config':
+      return runConfigCommand(positionals, options);
+    case 'uninstall':
+      return runUninstallCommand(positionals[0], positionals[1], options);
     default:
       return {
         exitCode: 1,
         stdout: [],
-        stderr: ['Usage: agentdock <scan|export|install|validate|doctor|list> [path]'],
+        stderr: [t('cli.usage')],
       };
   }
 }

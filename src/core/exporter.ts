@@ -10,12 +10,19 @@ export interface InstallPlanEntry {
   from: string;
   to: string;
   /**
-   * When true, the entry is a JSON file that should be *deep-merged*
-   * into the existing target (preserving other top-level keys and other
-   * entries) instead of overwritten. Used for `.claude.json` so installing
+   * When true, the entry should be *deep-merged* into the existing target
+   * (preserving other top-level keys) instead of overwritten. Used for
+   * `.claude.json` (JSON) and Codex `.codex/config.toml` (TOML) so installing
    * onto a machine that already has config never clobbers it.
    */
   merge?: boolean;
+  /**
+   * When `merge` is true, restricts the merge to these top-level keys only
+   * (other target keys are preserved untouched). On a *fresh* target (the
+   * file does not exist yet) the whole payload is restored regardless.
+   * e.g. `['mcpServers']` for `.claude.json`, `['mcp_servers']` for Codex.
+   */
+  mergeKeys?: string[];
 }
 
 export interface TemplatePlanEntry {

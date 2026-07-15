@@ -1,15 +1,19 @@
 import os from 'node:os';
 import path from 'node:path';
 import { defaultScanRoot, runScan } from '../core/scan';
+import { loadConfig } from '../core/config';
 import { COMMAND_ERROR_CODES } from '../constants/command-error-codes';
 import type { CommandResult, ParsedCliOptions } from '../manifest/types';
 import { toJsonError, toJsonLine } from '../utils/command-json';
 import type { ScanReportData } from '../core/scan';
 
 export async function runScanCommand(options: ParsedCliOptions = {}): Promise<CommandResult> {
-  const agent = options.agent ?? 'all';
+  const config = await loadConfig();
+  const agent = options.agent ?? config.agent ?? 'all';
   const root = options.root ?? defaultScanRoot();
-  const out = options.out ? path.resolve(options.out) : path.resolve('agentdock-scan');
+  const out = options.out
+    ? path.resolve(options.out)
+    : (config.out ? path.resolve(config.out) : path.resolve('agentdock-scan'));
 
   try {
     const { report } = await runScan({ agent, root, out });
